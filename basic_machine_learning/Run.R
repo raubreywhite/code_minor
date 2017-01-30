@@ -1,12 +1,12 @@
 RAWmisc::InitialiseProject(
   PROJHOME = "/analyses/code_minor/basic_machine_learning/",
-  PROJRAW = "/dropbox/data_raw/basic_machine_learning/",
+  PROJRAW = "/analyses/data_raw/basic_machine_learning/",
   PROJCLEAN = "/analyses/data_clean/basic_machine_learning",
   PROJBAKED = "/analyses/results_baked/basic_machine_learning/",
   PROJFINAL = "/analyses/results_final/basic_machine_learning/",
   PROJSHARED = "/dropbox/results_shared/basic_machine_learning/")
 
-d1 <- haven::read_spss("data_raw/alla_large.sav")
+d1 <- haven::read_spss(file.path(RPROJ$PROJRAW,"alla_large.sav"))
 d2 <- haven::read_spss("data_raw/alla_large both twins.sav")
 
 library(tensorflow)

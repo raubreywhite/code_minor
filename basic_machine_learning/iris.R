@@ -45,3 +45,4 @@ predictions <- classifier$predict(dataX[test_inds, ])
 predictions <- iterate(predictions)
 accuracy <- sum(predictions == dataY[test_inds]) / length(predictions)
 print(paste0("The accuracy is ", accuracy))
+
