@@ -1,12 +1,12 @@
 
 CleanData <- function(){
   #file <- system.file("extdata","Date discrepancies with CS 160115.txt",package="inflammation")
-  file <- file.path("data_raw","Date discrepancies with CS 160115.txt")
+  file <- file.path(RPROJ$PROJRAW,"Date discrepancies with CS 160115.txt")
   lengthPregnancies <-data.frame(fread(file))
   names(lengthPregnancies)[1] <- "CustomDataR"
   
   #file <- system.file("extdata","data.sav",package="inflammation")
-  file <- file.path("data_raw","data.sav")
+  file <- file.path(RPROJ$PROJRAW,"data.sav")
   masterData <- foreign::read.spss(file, to.data.frame=TRUE)
   masterData$Medicines_same_day_pregnancy_gr[is.na(masterData$Medicines_same_day_pregnancy_gr)] <- "other"
   masterData$Medicines_same_day_pp_gr[is.na(masterData$Medicines_same_day_pp_gr)] <- 0
@@ -444,7 +444,7 @@ CleanData <- function(){
   dataNamesIMPG <- dataNamesIMPG[!dataNamesIMPG %in% dataNamesIMPP]
   
   #file <- system.file("extdata","lod.txt",package="inflammation")
-  file <- file.path("data_raw","lod.txt")
+  file <- file.path(RPROJ$PROJRAW,"lod.txt")
   lod <- as.data.frame(fread(file))
   lod$lod <- as.numeric(str_replace_all(lod$lod, ",", "."))
   lod$imNum <- str_extract(lod$factor, "^[0-9][0-9][0-9]")

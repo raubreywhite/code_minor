@@ -1,4 +1,10 @@
-RAWmisc::Initialise()
+RAWmisc::InitialiseProject(
+  PROJHOME = "/analyses/code_minor/inflammation/",
+  PROJRAW = "/analyses/data_raw/inflammation/",
+  PROJCLEAN = "/analyses/data_clean/inflammation",
+  PROJBAKED = "/analyses/results_baked/inflammation/",
+  PROJFINAL = "/analyses/results_final/inflammation/",
+  PROJSHARED = "/dropbox/results_shared/inflammation/")
 library(data.table)
 library(Hmisc)
 library(stringr)
