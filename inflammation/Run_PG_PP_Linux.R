@@ -12,6 +12,7 @@ library(magrittr)
 library(tidyr)
 library(htmlTable)
 
+dir.create(file.path(RPROJ$PROJSHARED,lubridate::today()))
 
 SMAOpng <- RAWmisc::SMAOpng
 

@@ -1,0 +1,117 @@
+---
+title: "Safer Births DMC"
+author: "Richard White"
+date: "`r lubridate::today()`"
+output:
+  pdf_document: default
+---
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+RAWmisc::InitialiseProject(
+  PROJHOME = "/analyses/code_minor/safer_births/",
+  PROJRAW = "/analyses/data_raw/safer_births/",
+  PROJCLEAN = "/analyses/data_clean/safer_births",
+  PROJBAKED = "/analyses/results_baked/safer_births/",
+  PROJFINAL = "/analyses/results_final/safer_births/",
+  PROJSHARED = "/dropbox/results_shared/safer_births/")
+
+library(data.table)
+data <- haven::read_spss(file.path(RPROJ$PROJRAW,"MNH RCT 08JAN17-2.sav"))
+data <- data.table(data)
+```
+
+# SIGNIFICANCE DECISIONS
+We consider an alpha cut-off of 0.05 to be statistically sigificant
+
+# RESULTS
+- Not statistically significant difference in the secondary outcome low apgar score (<7) at 5th minute due to device assignment (p-value 0.943)
+- Not statistically significant difference in the secondary outcome stillbirths at 30 minutes due to device assignment (p-value 0.641)
+- Not statistically significant difference in the secondary outcome death at 24 hours due to device assignment (p-value 0.996)
+- Not statistically significant difference in the secondary outcome in treatment at 24 hours due to device assignment (p-value 0.127)
+- Not statistically significant difference in the secondary outcome death at 24 hours and/or in treatment at 24 minutes due to device assignment (p-value 0.115)
+
+# CONCLUSION
+- Do not terminate study early
+
+\newpage
+# CLEANING
+## Secondary outcomes
+```{r}
+invisible(data[,DEVICE:=DEVICE-2])
+## 30 minutes
+invisible(data[!is.na(NEOUTCOME1),outcome30minAnyVsNormal:=0])
+invisible(data[!is.na(NEOUTCOME1) & NEOUTCOME1>=2,outcome30minAnyVsNormal:=1])
+
+invisible(data[,outcome30minTreatmentVsNormal:=outcome30minAnyVsNormal])
+invisible(data[!NEOUTCOME1 %in% c(1,2), outcome30minTreatmentVsNormal:=NA])
+
+invisible(data[,outcome30minStillVsNormal:=outcome30minAnyVsNormal])
+invisible(data[!NEOUTCOME1 %in% c(1,4),outcome30minStillVsNormal:=NA])
+
+invisible(data[,outcome30minAdmittedVsNormal:=outcome30minAnyVsNormal])
+invisible(data[!NEOUTCOME1 %in% c(1,6),outcome30minAdmittedVsNormal:=NA])
+
+## 24 hours
+invisible(data[!is.na(NEOUTCOME2),outcome24hAnyVsNormal:=0])
+invisible(data[!is.na(NEOUTCOME2) & NEOUTCOME2>=2,outcome24hAnyVsNormal:=1])
+
+invisible(data[,outcome24hTreatmentVsNormal:=outcome24hAnyVsNormal])
+invisible(data[!NEOUTCOME2 %in% c(1,2), outcome24hTreatmentVsNormal:=NA])
+
+invisible(data[,outcome24hDeathVsNormal:=outcome24hAnyVsNormal])
+invisible(data[!NEOUTCOME2 %in% c(1,3),outcome24hDeathVsNormal:=NA])
+
+invisible(data[,outcome24hDeathTreatVsNormal:=outcome24hAnyVsNormal])
+invisible(data[!NEOUTCOME2 %in% c(1,2,3),outcome24hDeathTreatVsNormal:=NA])
+
+## 5 minutes
+invisible(data[!is.na(APGAR55),lowAPGAR5:=0])
+invisible(data[APGAR55<7,lowAPGAR5:=1])
+```
+
+\newpage
+# ANALYSES FOR SECONDARY OUTCOMES
+
+## Secondary outcome low apgar score at 5th minute (<7)
+
+```{r}
+xtabs(~DEVICE+lowAPGAR5,data=data)
+fit <- glm(lowAPGAR5~DEVICE,data=data,family=binomial())
+summary(fit)
+```
+
+\newpage
+## Secondary outcome stillbirths at 30 minutes
+
+```{r}
+xtabs(~DEVICE+outcome30minStillVsNormal,data=data)
+fit <- glm(outcome30minStillVsNormal~DEVICE,data=data,family=binomial())
+summary(fit)
+```
+
+\newpage
+## Secondary outcome death at 24 hours
+
+```{r}
+xtabs(~DEVICE+outcome24hDeathVsNormal,data=data)
+fit <- glm(outcome24hDeathVsNormal~DEVICE,data=data,family=binomial())
+summary(fit)
+```
+
+\newpage
+## Secondary outcome in treatment at 24 hours
+
+```{r}
+xtabs(~DEVICE+outcome24hTreatmentVsNormal,data=data)
+fit <- glm(outcome24hTreatmentVsNormal~DEVICE,data=data,family=binomial())
+summary(fit)
+```
+
+\newpage
+## Secondary outcome death at 24 hours and/or in treatment at 24 minutes
+
+```{r}
+xtabs(~DEVICE+outcome24hDeathTreatVsNormal,data=data)
+fit <- glm(outcome24hDeathTreatVsNormal~DEVICE,data=data,family=binomial())
+summary(fit)
+```
+

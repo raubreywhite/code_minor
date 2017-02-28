@@ -193,90 +193,95 @@ ZScoreAnalysesLassoTest <- function(d){
     } else suffix <- paste0("_",strata)
     
     for(outcome in 1:2) for(exposure in c("PG","PP","downPG","upPG","downPP","upPP")){
-      if(exposure%in%c("PG","downPG","upPG")){
-        model <- d$modelPG2
-      } else if(exposure %in% c("PP","downPP","upPP","diff")){
-        model <- d$modelPP2
-      }
-      if(strata=="earlierdep"){
-        model <- model[!model %in% "c_earlierDepression"]
-        #if(outcome==1 & exposure=="PP" & m=="complex") model <- model[!model %in% "c_medPPNSAID"]
-      }
-      if(strata=="earlierdep" & outcome==1) next
-      expstrata <- exposure
-      if(expstrata=="diff") expstrata <- "PP"
-      if(expstrata %in% c("downPG","upPG")) expstrata <- "PG"
-      if(expstrata %in% c("downPP","upPP")) expstrata <- "PP"
-      
-      if(exposure=="diff"){
-        if(outcome==1) next
-        model <- c("c_age")
-      }
-      x <- d$data[d[[paste0("analysisDAPCIM",expstrata,"_pp_sensitive_",outcome,suffix)]],c(
-        paste0("o_pp_sensitive_",outcome),
-        model,
-        paste0("meanZ",exposure)
-      )]
-      
-      n <- names(x)
-      n <- n[-which(n==paste0("o_pp_sensitive_",outcome))]
-      fit <- glm(as.formula(paste0("o_pp_sensitive_",outcome,"~.")),data=x,family=binomial())
-      
-      #fit <- lm(as.formula(paste0("as.numeric(o_pp_sensitive_",outcome,")-1~.")),data=x)
-      tabFull <- Greg::printCrudeAndAdjustedModel(fit,
-                                                  ci_lim=c(0,50),
-                                                  caption=paste0(label(x[,paste0("o_pp_sensitive_",outcome)])),
-                                                  desc_column=F)
-      descRes <- DescRes(x)
-      
-      tabFull <- cbind(descRes,as.data.frame(tabFull[,1:4]))
-      tabFull$pval <- coef(summary(fit))[,4]
-      
-      x <- na.omit(x)
-      group <- x[,paste0("o_pp_sensitive_",outcome)]
-      data <- x[,-which(names(x)==paste0("o_pp_sensitive_",outcome))]
-      
-      a=covTest::lars.glm(as.matrix(data),as.numeric(group)-1,family="binomial")
-      a$call <- gsub("^covTest::","",a$call)
-      final <- covTest::covTest(a,as.matrix(data),as.numeric(group)-1)
-      final <- data.frame(final$results)
-      final$importance <- 1:nrow(final)
-      final$inclModel <- FALSE
-      for(i in 1:nrow(final)){
-        if(final$P.value[i]<0.05){
-          final$inclModel[i] <- TRUE
-        } else break
-      }
-      
-      finalTable <- data.frame(tabFull)
-      finalTable$LASSO[2:nrow(finalTable)] <- format(round(exp(a$beta[1+sum(final$inclModel),]),2),nsmall=2)
-      finalTable$lassoPval <- NA
-      finalTable$importance <- NA
-      for(i in 1:nrow(final)){
-        if(final$Predictor_Number[i]<0) next
-        finalTable$lassoPval[1+final$Predictor_Number[i]] <- format(round(final$P.value[i],2),nsmall=2)
-        finalTable$importance[1+final$Predictor_Number[i]] <- final$importance[i]
-      }
-      m <- finalTable[-1,]
-      m <- cbind(as.character(row.names(m)),m)
-      
-      for(i in 1:ncol(m)) m[,i] <- as.character(m[,i])
-      for(i in 7) m[,i] <- format(round(as.numeric(m[,i]),2),nsmall=2)
-      #for(i in c(6,9,12)) m[str_detect(m[,i],"NA"),i] <- NA
-      m <- m[,-1]
-      names(m) <- c("Mean/n (N)","Crude OR","2.5% to 97.5%","Adj OR","2.5% to 97.5%","Pval","LASSO OR","Pval","Rank")
-      tab <- pander::pandoc.table.return(m, caption=paste0(label(x[,paste0("o_pp_sensitive_",outcome)])," : ",strata), style="simple", split.tables=Inf, split.cells=Inf)
-      #tab <- htmlTable::htmlTable(m,
-      #                 rnames=FALSE,
-      #                 header=c("Variable","Mean/n (N)","OR","2.5% to 97.5%","OR","2.5% to 97.5%","Pval","OR","Pval","Rank"),
-      #                 cgroup=c("","Crude","Adjusted","LASSO"),
-      #                 n.cgroup=c(2,2,3,3),
-      #                 align="lc",
-      #                 caption=paste0(label(x[,paste0("o_pp_sensitive_",outcome)])," : ",strata),
-      #                 tfoot="&dagger; LASSO's penalisation parameter lambda was selected to be the largest value such that the cross-validated error was within one standard-error of the minimum &Dagger; Permissive LASSO's lambda was selected to minimize the cross-validated error"
-      #)
-      
-      saveRDS(tab,file=paste0("results/LASSOmeanzscore_",outcome,"_",exposure,suffix,".RDS"))
+      try({
+        if(exposure%in%c("PG","downPG","upPG")){
+          model <- d$modelPG2
+        } else if(exposure %in% c("PP","downPP","upPP","diff")){
+          model <- d$modelPP2
+        }
+        if(strata=="earlierdep"){
+          model <- model[!model %in% "c_earlierDepression"]
+          #if(outcome==1 & exposure=="PP" & m=="complex") model <- model[!model %in% "c_medPPNSAID"]
+        }
+        #if(strata=="earlierdep" & outcome==1) next
+        expstrata <- exposure
+        if(expstrata=="diff") expstrata <- "PP"
+        if(expstrata %in% c("downPG","upPG")) expstrata <- "PG"
+        if(expstrata %in% c("downPP","upPP")) expstrata <- "PP"
+        
+        if(exposure=="diff"){
+          if(outcome==1) next
+          model <- c("c_age")
+        }
+        x <- d$data[d[[paste0("analysisDAPCIM",expstrata,"_pp_sensitive_",outcome,suffix)]],c(
+          paste0("o_pp_sensitive_",outcome),
+          model,
+          paste0("meanZ",exposure)
+        )]
+        
+        n <- names(x)
+        n <- n[-which(n==paste0("o_pp_sensitive_",outcome))]
+        fit <- glm(as.formula(paste0("o_pp_sensitive_",outcome,"~.")),data=x,family=binomial())
+        
+        #fit <- lm(as.formula(paste0("as.numeric(o_pp_sensitive_",outcome,")-1~.")),data=x)
+        tabFull <- Greg::printCrudeAndAdjustedModel(fit,
+                                                    ci_lim=c(0,50),
+                                                    caption=paste0(label(x[,paste0("o_pp_sensitive_",outcome)])),
+                                                    desc_column=F)
+        descRes <- DescRes(x)
+        
+        tabFull <- cbind(descRes,as.data.frame(tabFull[,1:4]))
+        tabFull$pval <- coef(summary(fit))[,4]
+        
+        x <- na.omit(x)
+        group <- x[,paste0("o_pp_sensitive_",outcome)]
+        data <- x[,-which(names(x)==paste0("o_pp_sensitive_",outcome))]
+        
+        a=covTest::lars.glm(as.matrix(data),as.numeric(group)-1,family="binomial")
+        a$call <- gsub("^covTest::","",a$call)
+        final <- covTest::covTest(a,as.matrix(data),as.numeric(group)-1)
+        final <- data.frame(final$results)
+        final$importance <- 1:nrow(final)
+        final$inclModel <- FALSE
+        for(i in 1:nrow(final)){
+          if(final$P.value[i]<0.05){
+            final$inclModel[i] <- TRUE
+          } else break
+        }
+        
+        finalTable <- data.frame(tabFull)
+        finalTable$LASSO[2:nrow(finalTable)] <- format(round(exp(a$beta[1+sum(final$inclModel),]),2),nsmall=2)
+        finalTable$lassoPval <- NA
+        finalTable$importance <- NA
+        for(i in 1:nrow(final)){
+          if(final$Predictor_Number[i]<0) next
+          finalTable$lassoPval[1+final$Predictor_Number[i]] <- format(round(final$P.value[i],2),nsmall=2)
+          finalTable$importance[1+final$Predictor_Number[i]] <- final$importance[i]
+        }
+        m <- finalTable[-1,]
+        m <- cbind(as.character(row.names(m)),m)
+        
+        for(i in 1:ncol(m)) m[,i] <- as.character(m[,i])
+        for(i in 7) m[,i] <- format(round(as.numeric(m[,i]),2),nsmall=2)
+        #for(i in c(6,9,12)) m[str_detect(m[,i],"NA"),i] <- NA
+        m <- m[,-1]
+        names(m) <- c("Mean/n (N)","Crude OR","2.5% to 97.5%","Adj OR","2.5% to 97.5%","Pval","LASSO OR","Pval","Rank")
+        openxlsx::write.xlsx(cbind(row.names(m),m),file.path(RPROJ$PROJSHARED,lubridate::today(),paste0("LASSOmeanzscore_",outcome,"_",exposure,suffix,"-",label(x[,paste0("o_pp_sensitive_",outcome)]),".xlsx")))
+        capture.output(xtabs(~x[,1]),file=file.path(RPROJ$PROJSHARED,lubridate::today(),paste0("LASSOmeanzscore_",outcome,"_",exposure,suffix,"-",label(x[,paste0("o_pp_sensitive_",outcome)]),"_SAMPLESIZE.txt")))
+        
+        tab <- pander::pandoc.table.return(m, caption=paste0(label(x[,paste0("o_pp_sensitive_",outcome)])," : ",strata), style="simple", split.tables=Inf, split.cells=Inf)
+        #tab <- htmlTable::htmlTable(m,
+        #                 rnames=FALSE,
+        #                 header=c("Variable","Mean/n (N)","OR","2.5% to 97.5%","OR","2.5% to 97.5%","Pval","OR","Pval","Rank"),
+        #                 cgroup=c("","Crude","Adjusted","LASSO"),
+        #                 n.cgroup=c(2,2,3,3),
+        #                 align="lc",
+        #                 caption=paste0(label(x[,paste0("o_pp_sensitive_",outcome)])," : ",strata),
+        #                 tfoot="&dagger; LASSO's penalisation parameter lambda was selected to be the largest value such that the cross-validated error was within one standard-error of the minimum &Dagger; Permissive LASSO's lambda was selected to minimize the cross-validated error"
+        #)
+        
+        saveRDS(tab,file=paste0(RPROJ$PROJBAKED,"/LASSOmeanzscore_",outcome,"_",exposure,suffix,".RDS"))
+      },TRUE)
     }
   }
 }
