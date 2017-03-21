@@ -6,50 +6,35 @@ GetOdds <- function(){
   b[,now:=as.POSIXct(a$user_time, origin="1970-01-01")]
   b[,timeUntil:=as.numeric(difftime(time,now,units="mins"))]
   b[,Date:=format(time,"%Y-%m-%d")]
-  b <- b[,c("Date","timeUntil","live","gamer_1.nick","gamer_2.nick","coef_1","coef_2"),with=F]
-  b[live==TRUE,gamer_1.nick:=stringr::str_replace_all(gamer_1.nick," \\(Live\\)$","")]
-  b[live==TRUE,gamer_2.nick:=stringr::str_replace_all(gamer_2.nick," \\(Live\\)$","")]
-  b[,gamer_1.nick:=stringr::str_replace_all(gamer_1.nick," \\(Map [0-9]\\)$","")]
-  b[,gamer_2.nick:=stringr::str_replace_all(gamer_2.nick," \\(Map [0-9]\\)$","")]
+  b <- b[live==FALSE,c("Date","time","timeUntil","live","gamer_1.nick","gamer_2.nick","coef_1","coef_2"),with=F]
+  b[,gamer_1.nick:=stringr::str_replace_all(gamer_1.nick," \\([mM]ap [0-9]\\)$","")]
+  b[,gamer_2.nick:=stringr::str_replace_all(gamer_2.nick," \\([mM]ap [0-9]\\)$","")]
+  setnames(b,c("gamer_1.nick","gamer_2.nick","coef_1","coef_2"),c("teamA","teamB","oddsA","oddsB"))
+  b[,oddsA:=as.numeric(oddsA)]
+  b[,oddsB:=as.numeric(oddsB)]
   
+  b <- b[,.(oddsA=mean(oddsA),oddsB=mean(oddsB),time=min(time),timeUntil=min(timeUntil)),by=.(teamA,teamB,Date)]
+  setorder(b,-time)
+  
+  b[,teamA:=stringr::str_replace_all(teamA," \\(Game [0-9]\\)$","")]
+  b[,teamB:=stringr::str_replace_all(teamB," \\(Game [0-9]\\)$","")]
+  
+  return(b)
 }
 
-GetUpcoming <- function(){
-  f <- tempfile()
-  system(sprintf("curl -sS 'http://www.hltv.org/matches/' > %s",f))
-  a <- XML::htmlParse(f)
-  tableNodes = XML::getNodeSet(a, "//div")
-  classes <- unlist(sapply(tableNodes,function(x){
-    retval <- XML::xmlGetAttr(x,"class")[[1]]
-    if(is.null(retval)) retval <- "x"
-    return(retval)
-  }))
-  dates <- which(classes=="matchListDateBox")
-  team1 <- which(classes=="matchTeam1Cell")
-  team2 <- which(classes=="matchTeam2Cell")
-  res <- data.frame("Date"=rep(NA,100),"teamA"=NA,"teamB"=NA)
-  for(j in 1:length(team1)){
-    if(team1[j]>dates[3]) break
-    matches <- tableNodes[[team1[j]]]
-    vals <- XML::xmlValue(matches)
-    vals <- gsub("\n","",vals)
-    vals <- gsub("[ ]*$","",vals)
-    res$teamA[j] <- vals
+UpdateOdds <- function(){
+  o <- GetOdds()
+  o <- o[timeUntil < -10]
+  for(i in unique(o$Date)){
+    f <- file.path(RPROJ$PROJRAW,"odds",paste0(i,".RDS"))
+    nd <- o[Date==i]
+    if(file.exists(f)){
+      od <- readRDS(file.path(RPROJ$PROJRAW,"odds",paste0(i,".RDS")))
+      md <- rbind(nd,od)
+      md <- unique(md,by=c("teamA","teamB","time"))
+      saveRDS(md,file.path(RPROJ$PROJRAW,"odds",paste0(i,".RDS")))
+    } else {
+      saveRDS(nd,file.path(RPROJ$PROJRAW,"odds",paste0(i,".RDS")))
+    }
   }
-  for(j in 1:length(team2)){
-    if(team2[j]>dates[3]) break
-    matches <- tableNodes[[team2[j]]]
-    vals <- XML::xmlValue(matches)
-    vals <- gsub("\n","",vals)
-    vals <- gsub("[ ]*$","",vals)
-    res$teamB[j] <- vals
-  }
-  for(i in 1:2){
-    
-  }
-  
-  
-  
-  data <- XML::readHTMLTable(f)
-  
 }

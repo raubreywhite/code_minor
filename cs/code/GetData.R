@@ -74,16 +74,16 @@ GetData <- function(){
   }
 }
 
-GetLastWeekData <- function(){
+UpdateLastWeekData <- function(){
   today <- lubridate::today()
-  days <- as.character(as.Date((today-7):(today),origin="1970-01-01"))
+  days <- as.character(as.Date((today-7):(today-1),origin="1970-01-01"))
   for(day in days){
-    if(file.exists(file.path(RPROJ$PROJRAW,paste0(day,'.RDS')))) next
+    if(file.exists(file.path(RPROJ$PROJRAW,"games",paste0(day,'.RDS')))) next
     print(day)
     try({
       d <- GetMatches(date=day)
       print(d)
-      saveRDS(d,file=file.path(RPROJ$PROJRAW,paste0(day,'.RDS')))
+      saveRDS(d,file=file.path(RPROJ$PROJRAW,"games",paste0(day,'.RDS')))
       print("Success")
     },TRUE)
   }
