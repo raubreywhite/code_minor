@@ -16,13 +16,21 @@ d[,.(yearwork=sum(yearwork)),by=.(area,category)]
 unique(d$area)
 d[,area:=factor(area,levels=c(
   "Direktørens stab",
-  "Kommunikasjonsavdelingen",
   "Instituttstab",
   "Kunnskapssenter",
   "Helsedata og digitalisering",
   "Psykisk og fysisk helse",
   "Smittevern, miljø og helse"))]
 unique(d$area)
+sum(d[categories=="Ledelse"]$yearwork)
+sum(d[categories!="Ledelse"]$yearwork)
+reducing <- (sum(d[categories!="Ledelse"]$yearwork)-100)/sum(d[categories!="Ledelse"]$yearwork)
+d[categories!="Ledelse",yearwork:=yearwork*reducing]
+
+sum(d[categories=="Ledelse"]$yearwork)
+sum(d[categories!="Ledelse"]$yearwork)
+
+sum(d$yearwork)
 
 target <- 120
 targetPerc <- target/sum(d$yearwork)
@@ -93,5 +101,68 @@ d[,targetFired:=NULL]
 d[,total:=NULL]
 d[,m:=NULL]
 openxlsx::write.xlsx(d,file.path(RPROJ$PROJSHARED,"antall_sparket_detaljert.xlsx"))
+
+d[,isLeader:="Ikke-ledelse"]
+d[categories=="Ledelse",isLeader:="Ledelse-Kategori-2"]
+d[categories=="Ledelse" & category==0,isLeader:="Ledelse-Kategori-0"]
+d[is.na(fired),fired:=0]
+
+leaders <- d[,.(
+    yearwork=sum(yearwork),
+    Nedbemannet=sum(fired)
+),by=isLeader]
+leaders[,BeholderJobb:=yearwork-Nedbemannet]
+leaders[,yearwork:=NULL]
+leaders <- melt.data.table(leaders,id="isLeader")
+
+setorder(leaders,-variable)
+q <- ggplot(leaders,aes(x=isLeader,y=value,fill=variable))
+q <- q + geom_bar(stat="identity")
+q <- q + scale_fill_brewer("Kategori",palette="Set2")
+#q <- q + guides(fill = guide_legend(reverse = TRUE))
+q <- q + scale_x_discrete("")
+q <- q + scale_y_continuous("Årsverk")
+q <- q + labs(title="Årsverk")
+q <- q + RAWmisc::theme_SMAO()
+#q <- q + theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+RAWmisc::SMAOpng(file.path(RPROJ$PROJSHARED,"årsverk_etter_ledelsen_1.png"))
+print(q)
+dev.off()
+
+setorder(leaders,isLeader)
+q <- ggplot(leaders,aes(x=variable,y=value,fill=isLeader))
+q <- q + geom_bar(stat="identity")
+q <- q + scale_fill_brewer("Kategori",palette="Set2")
+q <- q + guides(fill = guide_legend(reverse = TRUE))
+q <- q + scale_x_discrete("")
+q <- q + scale_y_continuous("Årsverk")
+q <- q + labs(title="Årsverk")
+q <- q + RAWmisc::theme_SMAO()
+#q <- q + theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+RAWmisc::SMAOpng(file.path(RPROJ$PROJSHARED,"årsverk_etter_ledelsen_2.png"))
+print(q)
+dev.off()
+
+
+leaders <- d[,.(
+  yearwork=sum(yearwork),
+  Nedbemannet=sum(fired)
+),by=isLeader]
+
+leaders[,BeholderJobb:=yearwork-Nedbemannet]
+leaders[isLeader!="Ikke-ledelse",isLeader:="Ledelse"]
+leaders[,Nedbemannet:=NULL]
+leaders <- leaders[,.(
+  yearworkPrevious=sum(yearwork),
+  yearworkAfter=sum(BeholderJobb)
+),by=isLeader]
+
+leaders[1,2:3,with=F]/leaders[2,2:3,with=F]
+
+leaders[,yearwork:=NULL]
+leaders <- melt.data.table(leaders,id="isLeader")
+
+
+
 
 

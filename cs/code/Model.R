@@ -126,7 +126,7 @@ ProcessOdds <- function(){
   return(d)
 }
 
-RunModel <- function(dataframe){
+RunModelInternal3 <- function(dataframe, model=NULL, stanExe=NULL){
   library(data.table)
   library(rstan)
   d <- data.table(dataframe)
@@ -164,21 +164,40 @@ RunModel <- function(dataframe){
   df <- 7
   
   data <- c("nteams","ngames","team1","score1","team2","score2","lastWin_a","lastWin_b","firstObs_a","firstObs_b","df")
-  
-  trash <- capture.output(fit <-  suppressMessages(suppressWarnings(stan(fit=stanExe, seed=4, chains=4, iter=5000, data=list(
-    "nteams"=nteams,
-    "ngames"=ngames,
-    "team1"=team1,
-    "score1"=score1,
-    "team2"=team2,
-    "score2"=score2,
-    "lastWin_a"=lastWin_a,
-    "lastWin_b"=lastWin_b,
-    "firstObs_a"=firstObs_a,
-    "firstObs_b"=firstObs_b,
-    "df"=df),
-    refresh=0
-  ))))
+  #return(3)
+  if(!is.null(stanExe)){
+    trash <- capture.output(fit <-  suppressMessages(suppressWarnings(stan(fit=stanExe, seed=4, chains=4, iter=5000, data=list(
+      "nteams"=nteams,
+      "ngames"=ngames,
+      "team1"=team1,
+      "score1"=score1,
+      "team2"=team2,
+      "score2"=score2,
+      "lastWin_a"=lastWin_a,
+      "lastWin_b"=lastWin_b,
+      "firstObs_a"=firstObs_a,
+      "firstObs_b"=firstObs_b,
+      "df"=df),
+      refresh=0
+    ))))
+  } else {
+    
+    trash <- capture.output(fit <-  suppressMessages(suppressWarnings(stan(file=paste0(model,".stan"), seed=4, chains=4, iter=5000, data=list(
+      "nteams"=nteams,
+      "ngames"=ngames,
+      "team1"=team1,
+      "score1"=score1,
+      "team2"=team2,
+      "score2"=score2,
+      "lastWin_a"=lastWin_a,
+      "lastWin_b"=lastWin_b,
+      "firstObs_a"=firstObs_a,
+      "firstObs_b"=firstObs_b,
+      "df"=df),
+      refresh=0
+    ))))
+    saveRDS(fit, paste0(model,".RDS"))
+  }
   #fit <- stan_run("stan/worldcup_matt_3.stan", data=data, chains=4, iter=5000)
   #print(fit)
   
@@ -211,3 +230,106 @@ RunModel <- function(dataframe){
   d[,estWin:=res]
   return(d[(ngames+1):ngamesAll])
 }
+
+
+RunModelInternal4 <- function(dataframe, model=NULL, stanExe=NULL){
+  library(data.table)
+  library(rstan)
+  d <- data.table(dataframe)
+  
+  teams <- teamsFit <- sort(unique(c(d[Date!=max(Date)]$teamA,d[Date!=max(Date)]$teamB)))
+  teamsPred <- sort(unique(c(d[Date==max(Date)]$teamA,d[Date==max(Date)]$teamB)))
+  teamsAll <- unique(c(teamsFit,teamsPred))
+  length(teamsFit)
+  length(teamsAll)
+  nteams <- length(teams)
+  ngames <- nrow(d[Date!=max(Date)])
+  ngamesAll <- nrow(d)
+  
+  team1 <- match (d[Date!=max(Date)]$teamA, teams)
+  score1 <- as.vector(d[Date!=max(Date)]$score1)
+  team2 <- match (d[Date!=max(Date)]$teamB, teams)
+  score2 <- as.vector(d[Date!=max(Date)]$score2)
+  
+  team1All <- match(d$teamA,teamsAll)
+  team2All <- match(d$teamB,teamsAll)
+  
+  lastWin_a <- as.vector(d[Date!=max(Date)]$lastWin_a)
+  lastWin_b <- as.vector(d[Date!=max(Date)]$lastWin_b)
+  
+  lastWin_aAll <- as.vector(d$lastWin_a)
+  lastWin_bAll <- as.vector(d$lastWin_b)
+  
+  
+  firstObs_a <- as.vector(d[Date!=max(Date)]$firstObs_a)
+  firstObs_b <- as.vector(d[Date!=max(Date)]$firstObs_b)
+  
+  firstObs_aAll <- as.vector(d$firstObs_a)
+  firstObs_bAll <- as.vector(d$firstObs_b)
+  
+  df <- 7
+  
+  data <- c("nteams","ngames","team1","score1","team2","score2","lastWin_a","lastWin_b","firstObs_a","firstObs_b","df")
+  #return(3)
+  if(!is.null(stanExe)){
+    trash <- capture.output(fit <-  suppressMessages(suppressWarnings(stan(fit=stanExe, seed=4, chains=4, iter=5000, data=list(
+      "nteams"=nteams,
+      "ngames"=ngames,
+      "team1"=team1,
+      "score1"=score1,
+      "team2"=team2,
+      "score2"=score2,
+      "lastWin_a"=lastWin_a,
+      "lastWin_b"=lastWin_b,
+      "firstObs_a"=firstObs_a,
+      "firstObs_b"=firstObs_b,
+      "df"=df),
+      refresh=0
+    ))))
+  } else {
+    
+    trash <- capture.output(fit <-  suppressMessages(suppressWarnings(stan(file=paste0(model,".stan"), seed=4, chains=4, iter=5000, data=list(
+      "nteams"=nteams,
+      "ngames"=ngames,
+      "team1"=team1,
+      "score1"=score1,
+      "team2"=team2,
+      "score2"=score2,
+      "lastWin_a"=lastWin_a,
+      "lastWin_b"=lastWin_b,
+      "firstObs_a"=firstObs_a,
+      "firstObs_b"=firstObs_b,
+      "df"=df),
+      refresh=0
+    ))))
+    saveRDS(fit, paste0(model,".RDS"))
+  }
+  #fit <- stan_run("stan/worldcup_matt_3.stan", data=data, chains=4, iter=5000)
+  #print(fit)
+  
+  sims <- extract(fit)
+  a_sims <- sims$a
+  a_hat <- colMeans(a_sims)
+  a_se <- apply(a_sims,2,sd)
+  
+  
+  nsims <- length(sims$sigma_y)
+  ncols <- ncol(sims$a)
+  extraCols <- length(teamsAll)-ncols
+  
+  #simsA <- cbind(sims$a,matrix(sample(c(sims$a),size=extraCols*nsims,replace=T),ncol=extraCols,nrow=nsims))
+  simsA <- cbind(sims$a,matrix(0,ncol=extraCols,nrow=nsims))
+  
+  random_outcome <- array(NA, c(nsims,ngamesAll))
+  for (s in 1:nsims){
+    random_outcome[s,] <- (
+        sims$homeAdvantage[s]+
+        simsA[s,team1All] - 
+        simsA[s,team2All]) + 
+      rt(ngamesAll,df)*sims$sigma_y[s]
+  }
+  res <- apply(random_outcome,2,function(x){mean(x>0)})
+  d[,estWin:=res]
+  return(d[(ngames+1):ngamesAll])
+}
+

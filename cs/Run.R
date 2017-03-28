@@ -8,6 +8,7 @@ RAWmisc::InitialiseProject(
 
 suppressWarnings(suppressMessages(library(data.table)))
 suppressWarnings(suppressMessages(library(ggplot2)))
+suppressWarnings(suppressMessages(library(pomp)))
 library(rstan)
 library(foreach)
 suppressMessages(library(doRedis))
@@ -17,17 +18,15 @@ tryCatch({
 }, error=function(err){
   registerDoRedis("cs",host="redis", nodelay=TRUE)
 })
+#doRedis::removeQueue("cs")
 
-if(getDoParWorkers()==1){
+if(getDoParWorkers()<=1){
   suppressMessages(startLocalWorkers(n=parallel::detectCores(), queue = "cs", host="redis", nodelay=FALSE))
 }
 getDoParWorkers()
 setProgress(TRUE)
 
-#rstan_options(auto_write = TRUE)
-#options(mc.cores = parallel::detectCores())
-
-assign("RUN_ALL", TRUE, envir=globalenv())
+assign("RUN_ALL", F, envir=globalenv())
 
 UpdateLastWeekData()
 UpdateOdds()
@@ -35,53 +34,171 @@ UpdateOdds()
 d <- ProcessData()
 o <- ProcessOdds()
 
+a <- RunWithOdds(d, o, RunModel=RunModelInternal4, model="stan/worldcup_matt_4", today=T)
+sum(a[timeUntil<0 & EV_A>0 & estWin>0.5]$moneyA)
+sum(a[timeUntil<0 & EV_A>0 & estWin>0.5]$moneyA)
+a[timeUntil>0 & EV_A>0 & estWin>0.5]
+
+b <- RunWithOdds(d, o, RunModel=RunModelInternal4, model="stan/worldcup_matt_4", today=F)
+sum(b[timeUntil<0 & EV_A>0.05 & estWin>0.5 & matchNum==1]$moneyA)
+mean(b[timeUntil<0 & EV_A>0.05 & estWin>0.5 & matchNum==1]$moneyA)
+length(b[timeUntil<0 & EV_A>0.05 & estWin>0.5 & matchNum==1]$moneyA)
+
+sum(b[timeUntil<0]$moneyA)
+mean(b[timeUntil<0]$moneyA)
+length(b[timeUntil<0]$moneyA)
+
+b[timeUntil<0 & estWin<0.9 & EV_B>0.0,.(money=sum(moneyB)),by=Date]
+b[timeUntil<0 & estWin<0.6 & EV_B>0.0,.(money=sum(moneyB)),by=Date]
+b[timeUntil<0 & estWin>0.5 & EV_A>0.05,.(money=sum(moneyA)),by=Date]
+
+sum(b[timeUntil<0 & EV_B>0.05]$moneyB)
+sum(b[timeUntil<0 & estWin<0.6 & EV_B>0.05]$moneyB)
+sum(b[timeUntil<0 & estWin<0.6 & EV_B>0.0 & matchNum==1]$moneyB)
+mean(b[timeUntil<0 & estWin<0.6 & EV_B>0.0]$moneyB)
+mean(b[timeUntil<0 & estWin<0.6 & EV_B>0.0]$moneyB>0)
+
+sum(b[timeUntil<0 & EV_B>0.05]$moneyB)
+mean(b[timeUntil<0 & EV_B>0.05]$moneyB)
+length(b[timeUntil<0 & EV_B>0.05]$moneyB)
+
+sum(b[timeUntil<0]$moneyB)
+mean(b[timeUntil<0]$moneyB)
+length(b[timeUntil<0]$moneyB)
+
+bets <- b[timeUntil<0 & EV_A>0.00 & estWin>0.50 & matchNum==1]
+bets <- bets[.N:1]
+money <- 100
+for(i in 1:nrow(bets)){
+  bet <- money[i]*bets$kellyA[i]
+  result <- bet*bets$moneyA[i]
+  money <- c(money,money[i]+result)
+}
+money[length(money)]
+length(money)
+
+
+bets <- b[timeUntil<0 & estWin<0.6 & EV_B>0.0 & matchNum==1]
+bets <- bets[.N:1]
+money <- 100
+for(i in 1:nrow(bets)){
+  bet <- money[i]*bets$kellyB[i]
+  result <- bet*bets$moneyB[i]
+  money <- c(money,money[i]+result)
+}
+money[length(money)]
+length(money)
+
+
+
+bets[,estA:=1/oddsA]
+summary(lm(win~-1+estA,data=bets[matchNum==2]))
+summary(lm(win~-1+estWin,data=bets[matchNum==2]))
+summary(lm(win~-1+estWin+estA,data=bets[matchNum==2]))
+
+length(money)
+
+mean(bets$moneyA)
+(money[length(money)]-money[1])/nrow(bets)/money[1]
+
+sum(b[timeUntil<0 & EV_A>0 & estWin>0.5]$moneyA)
+mean(b[timeUntil<0 & EV_A>0 & estWin>0.5]$moneyA)
+length(b[timeUntil<0 & EV_A>0 & estWin>0.5]$moneyA)
+
+
+
+
+
+
+#stanExe = readRDS("stan/worldcup_matt_3.rda")
+
+x <- RunWithoutOdds(d,RunModel=RunModelInternal3,model="stan/worldcup_matt_3",suffix="_3")
+x <- readRDS(file.path(RPROJ$PROJCLEAN,"est_3.RDS"))
+est3 <- rbindlist(x)
+
+x <- RunWithoutOdds(d,RunModel=RunModelInternal4,model="stan/worldcup_matt_4",suffix="_4")
+x <- readRDS(file.path(RPROJ$PROJCLEAN,"est_4.RDS"))
+est4 <- rbindlist(x)
+
+
+logit <- function(p){
+  log(p/(1-p))
+}
+
+invlogit <- function(p){
+  1/(1+exp(-p))
+}
+
+ProcessEst <- function(x,regression=FALSE){
+  df <- rbindlist(x)
+  
+  summary(fit <- glm(win~splines::ns(logit(estWin),df=3),family="binomial",data=df[1:1000]))
+  p <- predict(fit,df)
+  df[,estWin2:=invlogit(p)]
+  df[1:1000,estWin2:=NA]
+
+  if(regression){
+    df[,estWinBlock:=round(estWin2*10)/10]
+  } else {
+    df[,estWinBlock:=round(estWin*10)/10]
+  }
+  res <- df[,.(n=.N,win=mean(win)),by=estWinBlock]
+  setorder(res,estWinBlock)
+  res[,p:=n/sum(n)]
+  return(res)
+}
+
+print(ProcessEst(readRDS(file.path(RPROJ$PROJCLEAN,"est_3.RDS"))))
+print(ProcessEst(readRDS(file.path(RPROJ$PROJCLEAN,"est_4.RDS"))))
+
+print(ProcessEst(readRDS(file.path(RPROJ$PROJCLEAN,"est_3.RDS")),TRUE))
+print(ProcessEst(readRDS(file.path(RPROJ$PROJCLEAN,"est_4.RDS")),TRUE))
+
+model = "stan/worldcup_matt_3"
+suffix = "_3"
+RunModel <- RunModelInternal3
+
 dates <- unique(d$Date)
-numDatesWithOdds <- length(unique(o$Date))
-stanExe = readRDS("stan/worldcup_matt_3.rda")
 
-options(mc.cores = parallel::detectCores())
-today <- foreach(i=(length(dates)-(numDatesWithOdds-1)):length(dates)) %do% RunModel(as.data.frame(d[Date %in% dates[(i-199):(i)]]))
+options(mc.cores = 1)
+print("Checking if model is compiled")
+RunModelInternal3(dataframe=as.data.frame(d[Date %in% dates[(100-9):(100)]]),model=model)
+stanExe = readRDS("stan/worldcup_matt_3.RDS")
 
-todayEstimates <- rbindlist(today)
-todayEstimates <- todayEstimates[,
-                                 .(estWin=mean(estWin),
-                                   winsA=sum(win),
-                                   winsB=sum(1-win)),
-                                 by=.(Date,gameNum,matchNum,teamA,teamB)]
+print("Running in parallel")
+x <- foreach(i=199:200) %dopar% RunModelInternal3(dataframe=as.data.frame(d[Date %in% dates[(i-99):(i)]]),stanExe=stanExe)
 
-#today <- RunModel(as.data.frame(d[Date %in% dates[(length(dates)-199):length(dates)]]))
-todayEstimates[,estOdds:=1/estWin]
+saveRDS(x,file=file.path(RPROJ$PROJCLEAN,paste0("est",suffix,".RDS")))
+x <- readRDS(file=file.path(RPROJ$PROJCLEAN,paste0("est",suffix,".RDS")))
 
-nrow(todayEstimates)
-sum(todayEstimates$Date=="2017-03-20")
-todayEstimates[Date=="2017-03-20"]
-o[Date=="2017-03-20"]
-todayEstimates <- merge(todayEstimates,o,by=c("Date","teamA","teamB","matchNum"))
-sum(todayEstimates$Date=="2017-03-20")
-nrow(todayEstimates)
+RunWithoutOdds(d,RunModel=RunModelInternal3,model="stan/worldcup_matt_3",suffix="_3")
+doRedis::removeQueue("cs")
 
 
-setorder(todayEstimates,-time,-gameNum)
 
-todayEstimates[,win:=0]
-todayEstimates[winsA>winsB,win:=1]
-todayEstimates[,bookValue:=1/oddsA+1/oddsB]
-todayEstimates[,EV_A:=estWin*(oddsA-1)-(1-estWin)*1]
-todayEstimates[,EV_B:=(1-estWin)*(oddsB-1)-(estWin)*1]
-todayEstimates[,moneyA:=-1]
-todayEstimates[win==1,moneyA:=oddsA-1]
 
-todayEstimates[,moneyB:=-1]
-todayEstimates[win==0,moneyB:=oddsB-1]
 
-print(todayEstimates)
+sum(todayEstimates[Date=="2017-03-22" & EV_A>0 & estWin>0.5]$moneyA)
+
+todayEstimates[timeUntil>0 & EV_A>0 & estWin>0.5]
+
+sum(todayEstimates[timeUntil<0 & EV_A>0 & estWin>0.5]$moneyA)
+mean(todayEstimates[timeUntil<0 & EV_A>0 & estWin>0.5]$moneyA)
+length(todayEstimates[timeUntil<0 & EV_A>0 & estWin>0.5]$moneyA)
 
 sum(todayEstimates[timeUntil<0]$moneyA)
 sum(todayEstimates[timeUntil<0 & EV_A>0]$moneyA)
 sum(todayEstimates[timeUntil<0 & EV_A>0 & estWin>0.5]$moneyA)
-sum(todayEstimates[timeUntil<0 & EV_A> -0.05 & estWin>0.5]$moneyA)
-sum(todayEstimates[timeUntil<0 & EV_A> -0.1 & estWin>0.5]$moneyA)
-sum(todayEstimates[timeUntil<0 & EV_A> -0.15 & estWin>0.5]$moneyA)
+sum(todayEstimates[timeUntil<0 & EV_A> 0.05 & estWin>0.5]$moneyA)
+sum(todayEstimates[timeUntil<0 & EV_A> 0.1 & estWin>0.5]$moneyA)
+sum(todayEstimates[timeUntil<0 & EV_A> 0.15 & estWin>0.5]$moneyA)
+
+sum(todayEstimates[timeUntil<0 & EV_A>0 & estWin>0.3]$moneyA)
+sum(todayEstimates[timeUntil<0 & EV_A>0 & estWin>0.4]$moneyA)
+sum(todayEstimates[timeUntil<0 & EV_A>0 & estWin>0.5]$moneyA)
+sum(todayEstimates[timeUntil<0 & EV_A>0 & estWin>0.6]$moneyA)
+sum(todayEstimates[timeUntil<0 & EV_A>0 & estWin>0.7]$moneyA)
+sum(todayEstimates[timeUntil<0 & EV_A>0 & estWin>0.8]$moneyA)
 
 todayEstimates[timeUntil<0 & EV_A>0 & estWin>0.5]
 todayEstimates[timeUntil<0 & EV_B>0]

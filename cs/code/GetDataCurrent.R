@@ -47,13 +47,15 @@ GetUpcoming <- function(){
 }
 
 GetToday <- function(){
-  a <- GetUpcoming()
-  b <- GetMatches(date=as.character(lubridate::today()))
-  if(nrow(b)>0){
-    b <- data.table(b)
-    b[,href:=NULL]
-    a <- rbind(a,b)
-  }
+  a <- data.table(GetUpcoming())
+  try({
+    b <- GetMatches(date=as.character(lubridate::today()))
+    if(nrow(b)>0){
+      b <- data.table(b)
+      b[,href:=NULL]
+      a <- rbind(a,b)
+    }
+  },TRUE)
   a[,gameNum:=.N:1]
   return(a)
 }
