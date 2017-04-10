@@ -1,3 +1,16 @@
+ObtainLODdivsqrt2 <- function(){
+  file <- file.path(RPROJ$PROJRAW,"lod.txt")
+  lod <- as.data.frame(fread(file))
+  lod$lod <- as.numeric(stringr::str_replace_all(lod$lod, ",", "."))
+  names(lod) <- c("factor","lod_base_e")
+  #lod$imNum <- stringr::str_extract(lod$factor, "^[0-9][0-9][0-9]")
+  #lod <- lod[,-1]
+  lod$lod_base_10 <- exp(lod$lod_base_e)
+  lod$lod_base_10_div_sqrt_2 <- lod$lod_base_10/sqrt(2)
+  lod$substitution_for_base_e <- log(lod$lod_base_10_div_sqrt_2)
+  openxlsx::write.xlsx(lod,file.path(RPROJ$PROJBAKED,"data_lod.xlsx"))  
+}
+
 FixLOD <- function(dataIM){
   #file <- system.file("extdata","lod.txt",package="inflammation")
   file <- file.path(RPROJ$PROJRAW,"lod.txt")

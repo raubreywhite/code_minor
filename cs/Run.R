@@ -1,6 +1,6 @@
 RAWmisc::InitialiseProject(
   PROJHOME = "/analyses/code_minor/cs/",
-  PROJRAW = "/analyses/data_raw/cs/",
+  PROJRAW = "/home/rstudio/analyses/data_raw/cs",
   PROJCLEAN = "/analyses/data_clean/cs",
   PROJBAKED = "/analyses/results_baked/cs/",
   PROJFINAL = "/analyses/results_final/cs/",
@@ -40,36 +40,30 @@ sum(a[timeUntil<0 & EV_A>0 & estWin>0.5]$moneyA)
 a[timeUntil>0 & EV_A>0 & estWin>0.5]
 
 b <- RunWithOdds(d, o, RunModel=RunModelInternal4, model="stan/worldcup_matt_4", today=F)
-sum(b[timeUntil<0 & EV_A>0.05 & estWin>0.5 & matchNum==1]$moneyA)
-mean(b[timeUntil<0 & EV_A>0.05 & estWin>0.5 & matchNum==1]$moneyA)
-length(b[timeUntil<0 & EV_A>0.05 & estWin>0.5 & matchNum==1]$moneyA)
 
-sum(b[timeUntil<0]$moneyA)
-mean(b[timeUntil<0]$moneyA)
-length(b[timeUntil<0]$moneyA)
-
-b[timeUntil<0 & estWin<0.9 & EV_B>0.0,.(money=sum(moneyB)),by=Date]
-b[timeUntil<0 & estWin<0.6 & EV_B>0.0,.(money=sum(moneyB)),by=Date]
-b[timeUntil<0 & estWin>0.5 & EV_A>0.05,.(money=sum(moneyA)),by=Date]
-
-sum(b[timeUntil<0 & EV_B>0.05]$moneyB)
-sum(b[timeUntil<0 & estWin<0.6 & EV_B>0.05]$moneyB)
-sum(b[timeUntil<0 & estWin<0.6 & EV_B>0.0 & matchNum==1]$moneyB)
-mean(b[timeUntil<0 & estWin<0.6 & EV_B>0.0]$moneyB)
-mean(b[timeUntil<0 & estWin<0.6 & EV_B>0.0]$moneyB>0)
-
-sum(b[timeUntil<0 & EV_B>0.05]$moneyB)
-mean(b[timeUntil<0 & EV_B>0.05]$moneyB)
-length(b[timeUntil<0 & EV_B>0.05]$moneyB)
-
-sum(b[timeUntil<0]$moneyB)
-mean(b[timeUntil<0]$moneyB)
-length(b[timeUntil<0]$moneyB)
 
 bets <- b[timeUntil<0 & EV_A>0.00 & estWin>0.50 & matchNum==1]
+f <- lm(win~x,data=bets[1:40])
+#bets[,estWin:=predict(f,bets)]
+#
+#bets[,estWin:=bookValue/oddsA]
+#bets[,estWin:=estWin*mean(bets[1:30]$win)/mean(bets[1:30]$estWin)]
+#bets <- bets[31:.N]
+mean(bets$win)
+mean(bets$estWin)
+
+#bets[,EV_A:=estWin*(oddsA-1)-(1-estWin)*1]
+#bets[,kellyA:=round(0.95*(EV_A/(oddsA-1)),3)]
+
+#bets[,kellyA:=kellyA*0.2]
+#bets[kellyA>0.1,kellyA:=0.1]
+bets[,.(money=sum(moneyA),N=.N),by=Date]
+sum(bets$moneyA)
+sum(bets$EV_A)
 bets <- bets[.N:1]
 money <- 100
 for(i in 1:nrow(bets)){
+  #if(bets$kellyA[i]<0) next
   bet <- money[i]*bets$kellyA[i]
   result <- bet*bets$moneyA[i]
   money <- c(money,money[i]+result)
@@ -77,12 +71,17 @@ for(i in 1:nrow(bets)){
 money[length(money)]
 length(money)
 
-
-bets <- b[timeUntil<0 & estWin<0.6 & EV_B>0.0 & matchNum==1]
+bets <- b[timeUntil<0 & estWin<0.5 & EV_B>0.0 & matchNum>=1]
+#bets[,kellyB:=kellyB/2]
+bets[kellyB>0.05,kellyB:=0.05]
+bets[,.(perc=mean(moneyB>0),money=sum(moneyB),N=.N),by=Date]
+sum(bets$moneyB)
+sum(bets$EV_B)
 bets <- bets[.N:1]
 money <- 100
 for(i in 1:nrow(bets)){
   bet <- money[i]*bets$kellyB[i]
+  #if(bets$matchNum[i]==2) bet <- bet/4
   result <- bet*bets$moneyB[i]
   money <- c(money,money[i]+result)
 }
