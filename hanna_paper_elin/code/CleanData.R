@@ -1,5 +1,5 @@
 ObtainLODdivsqrt2 <- function(){
-  file <- file.path(RPROJ$PROJRAW,"lod.txt")
+  file <- file.path(RAWmisc::PROJ$RAW,"lod.txt")
   lod <- as.data.frame(fread(file))
   lod$lod <- as.numeric(stringr::str_replace_all(lod$lod, ",", "."))
   names(lod) <- c("factor","lod_base_e")
@@ -13,7 +13,7 @@ ObtainLODdivsqrt2 <- function(){
 
 FixLOD <- function(dataIM){
   #file <- system.file("extdata","lod.txt",package="inflammation")
-  file <- file.path(RPROJ$PROJRAW,"lod.txt")
+  file <- file.path(RAWmisc::PROJ$RAW,"lod.txt")
   lod <- as.data.frame(fread(file))
   lod$lod <- as.numeric(stringr::str_replace_all(lod$lod, ",", "."))
   lod$imNum <- stringr::str_extract(lod$factor, "^[0-9][0-9][0-9]")
@@ -55,10 +55,15 @@ FixLOD <- function(dataIM){
 CleanData <- function(){
   numbers <- list()
   #file <- system.file("extdata","Date discrepancies with CS 160115.txt",package="inflammation")
-  file <- file.path(RPROJ$PROJRAW,"inflammation_170131.sav")
+  file <- file.path(RAWmisc::PROJ$RAW,"inflammation_170131.sav")
   data <- haven::read_spss(file)
+  
+  data$im_participating_preg[data$CustomDataR==631] <- 0
+  data$im_152_PDL1[data$CustomDataR==631] <- NA
+  
   data <- data[!is.na(data$im_participating_pp) | !is.na(data$im_participating_preg),]
  
+  
   # INFLMATTION MARKERS
   
   dataNamesIMPG <- names(data)[stringr::str_detect(names(data),"^im_[0-9a-zA-Z_]*")]
@@ -80,7 +85,7 @@ CleanData <- function(){
                       p75=quantile(post,probs=0.75,na.rm=T)
                     ),
                     by=im]
-  openxlsx::write.xlsx(sumPG,file.path(RPROJ$PROJSHARED,lubridate::today(),"summary_pg.xlsx"))
+  openxlsx::write.xlsx(sumPG,file.path(RAWmisc::PROJ$SHARED_TODAY,"summary_pg.xlsx"))
   
   sumPP <- dataIMPP[,
                     .(n=sum(!is.na(post)),
@@ -93,7 +98,7 @@ CleanData <- function(){
                       p75=quantile(post,probs=0.75,na.rm=T)
                     ),
                     by=im]
-  openxlsx::write.xlsx(sumPG,file.path(RPROJ$PROJSHARED,lubridate::today(),"summary_pp.xlsx"))
+  openxlsx::write.xlsx(sumPG,file.path(RAWmisc::PROJ$SHARED_TODAY,"summary_pp.xlsx"))
   
   numbers[["Number of IMPGs (original)"]] <- length(unique(dataIMPG$im))
   dataIMPG <- dataIMPG[im %in% sumPG[percUnderLOD<25]$im]
@@ -103,7 +108,7 @@ CleanData <- function(){
   dataIMPP <- dataIMPP[im %in% sumPP[percUnderLOD<25]$im]
   numbers[["Number of IMPPs (after processing)"]] <- length(unique(dataIMPP$im))
   
-  saveRDS(numbers,file.path(RPROJ$PROJBAKED,"numbers.RDS"))
+  saveRDS(numbers,file.path(RAWmisc::PROJ$BAKED,"numbers.RDS"))
   
   ## PG ZSCORE
   dataIMPG[,zscore:=(post-mean(post,na.rm=T))/sd(post,na.rm=T)]
@@ -149,7 +154,7 @@ CleanData <- function(){
   dim(dataIMPG)
   dim(dataIMPP)
   
-  openxlsx::write.xlsx(data,file.path(RPROJ$PROJBAKED,"data_inflammation_factors.xlsx"))
+  openxlsx::write.xlsx(data,file.path(RAWmisc::PROJ$BAKED,"data_inflammation_factors.xlsx"))
 }
 
 

@@ -16,7 +16,7 @@ RunWithOdds <- function(d,o,RunModel,model=NULL,stanExe=NULL,today=F){
   if(today) numDatesWithOdds <- 1
   
   options(mc.cores = parallel::detectCores())
-  today <- foreach(i=(length(dates)-(numDatesWithOdds-1)):length(dates)) %do% RunModel(as.data.frame(d[Date %in% dates[(i-199):(i)]]), stanExe=stanExe)
+  today <- foreach(i=(length(dates)-(numDatesWithOdds-1)):length(dates)) %do% RunModel(as.data.frame(d[Date %in% dates[(i-299):(i)]]), stanExe=stanExe)
   options(mc.cores = 1)
   todayEstimates <- rbindlist(today)
   todayEstimates <- todayEstimates[,

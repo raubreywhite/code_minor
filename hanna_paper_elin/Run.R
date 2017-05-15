@@ -1,10 +1,12 @@
+#devtools::install_github("raubreywhite/RAWmisc")
+
 RAWmisc::InitialiseProject(
-  PROJHOME = "/analyses/code_minor/hanna_paper_elin/",
-  PROJRAW = "/analyses/data_raw/hanna_paper_elin/",
-  PROJCLEAN = "/analyses/data_clean/hanna_paper_elin",
-  PROJBAKED = "/analyses/results_baked/hanna_paper_elin/",
-  PROJFINAL = "/analyses/results_final/hanna_paper_elin/",
-  PROJSHARED = "/dropbox/results_shared/hanna_paper_elin/")
+  HOME = "/git/code_minor/hanna_paper_elin/",
+  RAW = "/analyses/data_raw/hanna_paper_elin/",
+  CLEAN = "/analyses/data_clean/hanna_paper_elin",
+  BAKED = "/analyses/results_baked/hanna_paper_elin/",
+  FINAL = "/analyses/results_final/hanna_paper_elin/",
+  SHARED = "/dropbox/results_shared/hanna_paper_elin/")
 
 suppressWarnings(suppressMessages(library(data.table)))
 suppressWarnings(suppressMessages(library(ggplot2)))
@@ -14,16 +16,23 @@ suppressWarnings(suppressMessages(library(pomp)))
 
 assign("RUN_ALL", TRUE, envir=globalenv())
 
-unlink(file.path(RPROJ$PROJSHARED,lubridate::today()), recursive=TRUE, force=TRUE)
-dir.create(file.path(RPROJ$PROJSHARED,lubridate::today()))
+unlink(RAWmisc::PROJ$SHARED_TODAY, recursive=TRUE, force=TRUE)
+dir.create(RAWmisc::PROJ$SHARED_TODAY)
 
 CleanData()
-rmarkdown::render("Notes.Rmd", output_dir = file.path(RPROJ$PROJSHARED,lubridate::today()))
+
+a <- readxl::read_excel(file.path(RAWmisc::PROJ$BAKED,"data_inflammation_factors.xlsx"))
+a$im_152_PDL1[a$CustomDataR==631]
+apply(a,2,function(x){min(x,na.rm=T)})
+
+rmarkdown::render("Notes.Rmd", output_dir = RAWmisc::PROJ$SHARED_TODAY)
 cmd <- sprintf("cd %s; zip -P sqo391 %s %s",
-               RPROJ$PROJBAKED,
-               file.path(RPROJ$PROJSHARED,lubridate::today(),"data.zip"),
+               RAWmisc::PROJ$BAKED,
+               file.path(RAWmisc::PROJ$SHARED_TODAY,"data.zip"),
                "data_inflammation_factors.xlsx")
 system(cmd)
+
+
 
 utils::data(anorexia, package = "MASS")
 anorexia$outcome <- 0

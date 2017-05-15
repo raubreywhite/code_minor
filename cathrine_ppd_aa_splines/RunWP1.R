@@ -1,6 +1,6 @@
 RAWmisc::InitialiseProject(
-  PROJHOME = "/analyses/code_minor/cathrine_ppd_aa_splines/",
-  PROJRAW = "/home/rstudio/analyses/data_raw/cathrine_ppd_aa_splines/",
+  PROJHOME = "/git/code_minor/cathrine_ppd_aa_splines/",
+  PROJRAW = "/analyses/data_raw/cathrine_ppd_aa_splines/",
   PROJCLEAN = "/analyses/data_clean/cathrine_ppd_aa_splines",
   PROJBAKED = "/analyses/results_baked/cathrine_ppd_aa_splines/",
   PROJFINAL = "/analyses/results_final/cathrine_ppd_aa_splines/",

@@ -1,10 +1,10 @@
 RAWmisc::InitialiseProject(
-  PROJHOME = "/analyses/code_minor/cs/",
-  PROJRAW = "/home/rstudio/analyses/data_raw/cs",
-  PROJCLEAN = "/analyses/data_clean/cs",
-  PROJBAKED = "/analyses/results_baked/cs/",
-  PROJFINAL = "/analyses/results_final/cs/",
-  PROJSHARED = "/dropbox/results_shared/cs/")
+  HOME = "/git/code_minor/cs/",
+  RAW = "/analyses/data_raw/cs/",
+  CLEAN = "/analyses/data_clean/cs",
+  BAKED = "/analyses/results_baked/cs/",
+  FINAL = "/analyses/results_final/cs/",
+  SHARED = "/dropbox/results_shared/cs/")
 
 suppressWarnings(suppressMessages(library(data.table)))
 suppressWarnings(suppressMessages(library(ggplot2)))

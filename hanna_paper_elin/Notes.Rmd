@@ -5,12 +5,12 @@ output:
 ---
 ```{r, message=FALSE, warning=FALSE, include=FALSE}
 RAWmisc::InitialiseProject(
-  PROJHOME = "/analyses/code_minor/hanna_paper_elin/",
-  PROJRAW = "/analyses/data_raw/hanna_paper_elin/",
-  PROJCLEAN = "/analyses/data_clean/hanna_paper_elin",
-  PROJBAKED = "/analyses/results_baked/hanna_paper_elin/",
-  PROJFINAL = "/analyses/results_final/hanna_paper_elin/",
-  PROJSHARED = "/dropbox/results_shared/hanna_paper_elin/")
+  HOME = "/git/code_minor/hanna_paper_elin/",
+  RAW = "/analyses/data_raw/hanna_paper_elin/",
+  CLEAN = "/analyses/data_clean/hanna_paper_elin",
+  BAKED = "/analyses/results_baked/hanna_paper_elin/",
+  FINAL = "/analyses/results_final/hanna_paper_elin/",
+  SHARED = "/dropbox/results_shared/hanna_paper_elin/")
 ```
 
 ## Data cleaning
@@ -25,7 +25,7 @@ The previous paper with Emma was log2(values+1). This was previously chosen for 
 The previous paper with Emma included all IFs with 50%+ of the data >LODs (we are using 75%). I decided to make the cutoff more stringent here, as here we are making the data "general" for a "general paper", so it is nice to have stringent cutoffs, as there aren't any specific cases that we can use to justify different cutoffs in advance.
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
-numbers <- readRDS(file.path(RPROJ$PROJBAKED,"numbers.RDS"))
+numbers <- readRDS(file.path(RAWmisc::PROJ$BAKED,"numbers.RDS"))
 
 print(numbers)
 ```

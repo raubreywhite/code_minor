@@ -1,7 +1,7 @@
 
 GetScores <- function(href){
-  system(sprintf("curl -sS '%s' > /analyses/code_minor/cs/test.txt",href))
-  a <- XML::htmlParse("/analyses/code_minor/cs/test.txt")
+  system(sprintf("curl -sS '%s' > /git/code_minor/cs/test.txt",href))
+  a <- XML::htmlParse("/git/code_minor/cs/test.txt")
   tableNodes = XML::getNodeSet(a, "//div")
   classes <- unlist(sapply(tableNodes,function(x){
     retval <- XML::xmlGetAttr(x,"class")[[1]]
@@ -21,9 +21,9 @@ GetMatches <- function(date="2016-11-01"){
   fakeDate <- paste0(format.Date(as.Date(date),"%Y"),"-",
                      gsub("^0","",format.Date(as.Date(date),"%m")),"-",
                      format.Date(as.Date(date),"%d"))
-  system(sprintf("curl -sS 'http://www.hltv.org/?pageid=324&filter=1&clean=1' --data 'vod=false&intersect=false&highlight=false&stats=false&demo=false&offset=0&daterange=%s+to+%s' > /analyses/code_minor/cs/test.txt",fakeDate,fakeDate))
+  system(sprintf("curl -sS 'http://www.hltv.org/?pageid=324&filter=1&clean=1' --data 'vod=false&intersect=false&highlight=false&stats=false&demo=false&offset=0&daterange=%s+to+%s' > /git/code_minor/cs/test.txt",fakeDate,fakeDate))
   
-  data <- XML::readHTMLTable("/analyses/code_minor/cs/test.txt")[[1]]
+  data <- XML::readHTMLTable("/git/code_minor/cs/test.txt")[[1]]
   data <- data[,1:2]
   for(i in 1:2){
     data[,i] <- as.character(data[,i])
@@ -44,7 +44,7 @@ GetMatches <- function(date="2016-11-01"){
   }
   data$Teams <- NULL
   
-  a <- XML::htmlParse("/analyses/code_minor/cs/test.txt")
+  a <- XML::htmlParse("/git/code_minor/cs/test.txt")
   tableNodes = XML::getNodeSet(a, "//table//td//a")
   
   data$scores <- ""
