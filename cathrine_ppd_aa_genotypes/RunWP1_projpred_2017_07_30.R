@@ -1,13 +1,9 @@
-# Adds in Richard's own custom repository (allows for you to install 'RAWmisc')
-if(!"https://raubreywhite.github.io/drat/" %in% options("repos")$repos){
-  options("repos"=c(options("repos")$repos, raubreywhite = "https://raubreywhite.github.io/drat/"))
-}
-
 # If packages aren't installed -- install them
 if(!require(devtools)) install.packages("devtools")
+if(!require(pbkrtest)) install.packages("pbkrtest")
 if(!require(car)) install.packages("car")
 if(!require(MASS)) install.packages("MASS")
-if(!require(parallel)) install.package("parallel")
+if(!require(parallel)) install.packages("parallel")
 if(!require(data.table)) install.packages("data.table")
 if(!require(rstanarm)) install.packages("rstanarm")
 if(!require(data.table)) install.packages("data.table")
@@ -15,7 +11,7 @@ if(!require(projpred)) devtools::install_github('stan-dev/projpred')
 if(!require(ggplot2)) install.packages("ggplot2")
 if(!require(bayesplot)) install.packages("bayesplot")
 if(!require(haven)) install.packages("haven")
-if(!require(RAWmisc)) install.packages("RAWmisc")
+if(!require(RAWmisc)) devtools::install_github('raubreywhite/RAWmisc')
 
 # Load important packages
 suppressWarnings(suppressMessages(library(data.table)))
@@ -60,17 +56,10 @@ UNRECATEGORIZED_SNPs <- SNPs[!SNPs %in% RECATEGORIZED_SNPs]
 
 # These are covariates
 COVAR <- c(
-  "ASQSF_total_anxiety",
-  "ASQSF_total_avoidance",
-  "v17_dep_anamnes",
   "v32_Alder_CA",
-  "Nulliparous_CA",
   "v17_fodelseort_R",
   "v17_utbildning_R",
-  "v17_arbetardu_R",
-  "v17_vald_R",
-  "v17_planeradgrav",
-  "v17_somn_6_R"
+  "v17_arbetardu_R"
 )
 
 
@@ -79,6 +68,7 @@ COVAR <- c(
 ## READ IN DATA
 ## CATHRINE YOU WILL NEED TO CHANGE THIS
 d <- haven::read_spss("/analyses/data_raw/cathrine_ppd_aa_genotypes/Pek3 PPD ASQ OXT LITE 1631.sav")
+#d <- haven::read_spss("~/BASICkrypt/Pek3 PPD ASQ OXT LITE 1631.sav")
 
 ## APPLY FACTOR LABELS TO SNPs THAT DONT NEED TO BE RECATEGORIZED
 for(s in UNRECATEGORIZED_SNPs){
@@ -125,19 +115,22 @@ nrow(d)
 d <- d[Any_genotype==1]
 nrow(d)
 
+prop.table(table(d$rs2740210_CA))
+table(d$rs2740210_CA)
+prop.table(table(d$rs4813625_CA))
+prop.table(table(d$rs4813627_CA))
+prop.table(table(d$rs7632287_CA)) #2 only 0.07
+prop.table(table(d$rs1042778_CA))
+prop.table(table(d$rs2254298_CA)) #0 only 0.01
+prop.table(table(d$rs2268490_CA)) #2 only 0.02
+prop.table(table(d$rs2268491_CA)) #0 only 0.01
+prop.table(table(d$rs237885_CA))
+prop.table(table(d$rs235887_CA))
+prop.table(table(d$rs237902_CA))
+prop.table(table(d$rs4686302_CA)) #0 only 0.022
+prop.table(table(d$rs53576_CA))
+
 ########### RIGHT NOW THE DATASET IS READY FOR ANALYSES 1 AND 2
-
-## Checking Cathrine's results
-fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs2740210_CA, data=d)
-summary(fit)
-car::lht(fit,c("rs2740210_CACA=0","rs2740210_CACC=0"))
-
-fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs4813625_CA, data=d)
-summary(fit)
-car::lht(fit,c("rs4813625_CACG=0","rs4813625_CACC=0"))
-
-fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs2268490_CA, data=d)
-summary(fit)
 
 ###### CREATING CORRELATION MATRIX
 wideData <- vector("list", length=length(SNPs))
@@ -219,41 +212,325 @@ fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs4813625_CA, data=d)
 summary(fit)
 car::lht(fit,c("rs4813625_CACG=0","rs4813625_CACC=0"))
 
-# and so on ...
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs4813627_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs4813627_CAGA=0","rs4813627_CAGG=0"))
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs7632287_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs7632287_CAAG=0","rs7632287_CAAA=0"))
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs1042778_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs1042778_CAGT=0","rs1042778_CATT=0"))
+
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs2254298_CA, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs2268490_CA, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs2268491_CA, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs237885_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs237885_CAGT=0","rs237885_CAGG=0"))
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs235887_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs235887_CAAG=0","rs235887_CAAA=0"))
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs237902_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs237902_CAAG=0","rs237902_CAAA=0"))
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs4686302_CA, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs53576_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs53576_CAGA=0","rs53576_CAGG=0"))
+
+
+
+# CA: SAME FOR OUTCOME PPM6
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs2740210_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs2740210_CACA=0","rs2740210_CACC=0"))
+car::lht(fit,c("rs2740210_CACA=rs2740210_CACC"))
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs4813625_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs4813625_CACG=0","rs4813625_CACC=0"))
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs4813627_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs4813627_CAGA=0","rs4813627_CAGG=0"))
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs7632287_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs7632287_CAAG=0","rs7632287_CAAA=0"))
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs1042778_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs1042778_CAGT=0","rs1042778_CATT=0"))
+
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs2254298_CA, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs2268490_CA, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs2268491_CA, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs237885_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs237885_CAGT=0","rs237885_CAGG=0"))
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs235887_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs235887_CAAG=0","rs235887_CAAA=0"))
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs237902_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs237902_CAAG=0","rs237902_CAAA=0"))
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs4686302_CA, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs53576_CA, data=d)
+summary(fit)
+car::lht(fit,c("rs53576_CAGA=0","rs53576_CAGG=0"))
+
+
+
 
 ## ANALYSIS 2 (Adjusted negative-binomial regression, with one exposure per regression)
 print(SNPs)
 
 fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs2740210_CA + 
-                      ASQSF_total_anxiety + 
-                      ASQSF_total_avoidance + 
-                      v17_dep_anamnes + 
                       v32_Alder_CA +
-                      Nulliparous_CA +
                       v17_fodelseort_R +
                       v17_utbildning_R +
-                      v17_arbetardu_R +
-                      v17_vald_R +
-                      v17_planeradgrav +
-                      v17_somn_6_R, data=d)
+                      v17_arbetardu_R, data=d)
 summary(fit)
 car::lht(fit,c("rs2740210_CACA=0","rs2740210_CACC=0"))
 car::lht(fit,c("rs2740210_CACA=rs2740210_CACC"))
 
 fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs4813625_CA + 
-                      ASQSF_total_anxiety + 
-                      ASQSF_total_avoidance + 
-                      v17_dep_anamnes + 
                       v32_Alder_CA +
-                      Nulliparous_CA +
                       v17_fodelseort_R +
                       v17_utbildning_R +
-                      v17_arbetardu_R +
-                      v17_vald_R +
-                      v17_planeradgrav +
-                      v17_somn_6_R, data=d)
+                      v17_arbetardu_R, data=d)
 summary(fit)
 car::lht(fit,c("rs4813625_CACG=0","rs4813625_CACC=0"))
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs4813627_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs4813627_CAGA=0","rs4813627_CAGG=0"))
+
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs7632287_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs7632287_CAAG=0","rs7632287_CAAA=0"))
+
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs1042778_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs1042778_CAGT=0","rs1042778_CATT=0"))
+
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs2254298_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs2268490_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs2268491_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs237885_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs237885_CAGT=0","rs237885_CAGG=0"))
+
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs235887_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs235887_CAAG=0","rs235887_CAAA=0"))
+
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs237902_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs237902_CAAG=0","rs237902_CAAA=0"))
+
+
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs4686302_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppv6_EPDS_9R) ~ rs53576_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs53576_CAGA=0","rs53576_CAGG=0"))
+
+#CA: ANALYSIS 2, PPM6
+
+print(SNPs)
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs2740210_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs2740210_CACA=0","rs2740210_CACC=0"))
+car::lht(fit,c("rs2740210_CACA=rs2740210_CACC"))
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs4813625_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs4813625_CACG=0","rs4813625_CACC=0"))
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs4813627_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs4813627_CAGA=0","rs4813627_CAGG=0"))
+
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs7632287_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs7632287_CAAG=0","rs7632287_CAAA=0"))
+
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs1042778_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs1042778_CAGT=0","rs1042778_CATT=0"))
+
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs2254298_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs2268490_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs2268491_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs237885_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs237885_CAGT=0","rs237885_CAGG=0"))
+
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs235887_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs235887_CAAG=0","rs235887_CAAA=0"))
+
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs237902_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs237902_CAAG=0","rs237902_CAAA=0"))
+
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs4686302_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+
+fit <- MASS::glm.nb(round(ppm6_EPDS_9R) ~ rs53576_CA + 
+                      v32_Alder_CA +
+                      v17_fodelseort_R +
+                      v17_utbildning_R +
+                      v17_arbetardu_R, data=d)
+summary(fit)
+car::lht(fit,c("rs53576_CAGA=0","rs53576_CAGG=0"))
 
 # and so on ...
 
