@@ -46,13 +46,12 @@ outcomes <- c("egg_asp",
               "livebirth_ET")
 
 variablesFirst <- c(
-  "phs_length_m",
   "X_AGE",
   "INF_INTERCOURSE_3MNT_FRQ",
   "education",
   "SMOKE_DAILY_NOW",
   "alcohol",
-  "gravid",
+  "previous_miscarriage",
   "BMI",
   "depression_ever",
   "reason_infert_Q",
@@ -64,13 +63,12 @@ variablesFirst <- c(
 )
 
 variablesSecond <- c(
-  "phs_length_m",
   "X_AGE",
   "INF_INTERCOURSE_3MNT_FRQ",
   "education",
   "SMOKE_DAILY_NOW",
   "alcohol",
-  "gravid",
+  "previous_miscarriage",
   "BMI",
   "depression_ever",
   "reason_infert_Q",
@@ -78,20 +76,23 @@ variablesSecond <- c(
   "final_trying_time_years",
   "caffeine_daily",
   "AMH",
-  "AFC_TOTAL"
+  "AFC_TOTAL",
+  "ASP_EGG",
+  "n_embryo_created",
+  "n_embryo_used"
 )
 
 modelExposures <- list()
 modelExposures[["null"]] <- "1"
 
 modelExposures[["first_full_linear"]] <- "
-phs_length_m+
 X_AGE+
 factor(INF_INTERCOURSE_3MNT_FRQ)+
 education+
 SMOKE_DAILY_NOW+
 alcohol+
-gravid+
+previous_miscarriage+
+BMI+
 depression_ever+
 factor(reason_infert_Q)+
 PAL_total+
@@ -101,13 +102,13 @@ AMH+
 AFC_TOTAL"
 
 modelExposures[["first_full_spline"]] <- "
-splines::ns(phs_length_m,2)+
 splines::ns(X_AGE,2)+
 factor(INF_INTERCOURSE_3MNT_FRQ)+
 education+
 SMOKE_DAILY_NOW+
 alcohol+
-gravid+
+previous_miscarriage+
+splines::ns(BMI,2)+
 depression_ever+
 factor(reason_infert_Q)+
 splines::ns(PAL_total,2)+
@@ -117,36 +118,42 @@ splines::ns(AMH,2)+
 splines::ns(AFC_TOTAL,2)"
 
 modelExposures[["second_full_linear"]] <- "
-phs_length_m+
-X_AGE+
+  X_AGE+
 factor(INF_INTERCOURSE_3MNT_FRQ)+
 education+
 SMOKE_DAILY_NOW+
 alcohol+
-gravid+
+previous_miscarriage+
+BMI+
 depression_ever+
 factor(reason_infert_Q)+
 PAL_total+
 final_trying_time_years+
 caffeine_daily+
 AMH+
-AFC_TOTAL"
+AFC_TOTAL+
+ASP_EGG+
+n_embryo_created+
+n_embryo_used"
 
 modelExposures[["second_full_spline"]] <- "
-splines::ns(phs_length_m,2)+
 splines::ns(X_AGE,2)+
 factor(INF_INTERCOURSE_3MNT_FRQ)+
 education+
 SMOKE_DAILY_NOW+
 alcohol+
-gravid+
+previous_miscarriage+
+splines::ns(BMI,2)+
 depression_ever+
 factor(reason_infert_Q)+
 splines::ns(PAL_total,2)+
 splines::ns(final_trying_time_years,2)+
 splines::ns(caffeine_daily,2)+
 splines::ns(AMH,2)+
-splines::ns(AFC_TOTAL,2)"
+splines::ns(AFC_TOTAL,2)+
+splines::ns(ASP_EGG)+
+splines::ns(n_embryo_created)+
+splines::ns(n_embryo_used)"
 
 categoricalExposures <- list()
 categoricalExposures[["first_full_linear"]] <- c(
@@ -160,12 +167,12 @@ categoricalExposures[["second_full_linear"]] <- c(
 
 continuousExposures <- list()
 continuousExposures[["first_full_linear"]] <- c(
-  "phd_length_m",
   "X_AGE",
   "education",
   "SMOKE_DAILY_NOW",
   "alcohol",
-  "gravid",
+  "previous_miscarriage",
+  "BMI",
   "depression_ever",
   "PAL_total",
   "final_trying_time_years",
@@ -174,18 +181,21 @@ continuousExposures[["first_full_linear"]] <- c(
   "AFC_TOTAL"
 )
 continuousExposures[["second_full_linear"]] <- c(
-  "phd_length_m",
   "X_AGE",
   "education",
   "SMOKE_DAILY_NOW",
   "alcohol",
-  "gravid",
+  "previous_miscarriage",
+  "BMI",
   "depression_ever",
   "PAL_total",
   "final_trying_time_years",
   "caffeine_daily",
   "AMH",
-  "AFC_TOTAL"
+  "AFC_TOTAL",
+  "ASP_EGG",
+  "n_embryo_created",
+  "n_embryo_used"
 )
 
 d <- list()
