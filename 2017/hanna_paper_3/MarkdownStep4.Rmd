@@ -1,0 +1,207 @@
+---
+title: "Step 4 for zscorePG"
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+RAWmisc::InitialiseProject(
+  HOME = "/git/code_minor/hanna_paper_3/",
+  RAW = "/analyses/data_raw/hanna_paper_3/",
+  CLEAN = "/analyses/data_clean/hanna_paper_3",
+  BAKED = "/analyses/results_baked/hanna_paper_3/",
+  FINAL = "/analyses/results_final/hanna_paper_3/",
+  SHARED = "/dropbox/clients/hanna/paper_3/richard/")
+
+library(data.table)
+library(ggplot2)
+
+if(!exists("d")) d <- haven::read_spss(file.path(RAWmisc::PROJ$RAW,"alla_large_final.sav"))
+index <- d$im_participating_preg==1
+index[is.na(index)] <- FALSE
+d <- d[index,]
+```
+
+## Investigate dataset
+
+After including the `im_participating_preg` variable we have `r nrow(d)` participants.
+
+```{r}
+table(d$v32_SSRI, useNA="always")
+```
+
+```{r}
+table(d$v32_EPDS_D2_9R, useNA="always")
+```
+
+\newpage
+
+## Full model
+```{r}
+fitFull <- lm(zscorePG ~
+  v32_EPDS_D2_9R +
+  v32_SSRI +
+  im_fasting_sample +
+  SIN_366_preg +
+  COS_366_preg +
+  SIN_183_preg +
+  COS_183_preg,
+  data = d
+  )
+fitNoSeasonality <- lm(zscorePG ~
+  v32_EPDS_D2_9R +
+  v32_SSRI +
+  im_fasting_sample,
+  data = fitFull$model
+  )
+summary(fitFull)
+```
+
+This full model has `r nrow(fitFull$model)` observations in it. Shouldn't we only have 281?
+
+\newpage
+
+## Testing for overall seasonality
+We now test for all seasonality at once:
+```{r}
+anova(fitNoSeasonality,fitFull)
+```
+
+It appears that there is significant seasonality in this data
+
+\newpage
+
+## Testing individual seasonality components
+We now fit the two lesser models that we use to perform the F test on:
+```{r}
+fitNo366 <- lm(zscorePG ~ 
+  v32_EPDS_D2_9R +
+  v32_SSRI +
+  im_fasting_sample +
+  SIN_183_preg +
+  COS_183_preg,
+  data = d
+  )
+
+fitNo183 <- lm(zscorePG ~ 
+  v32_EPDS_D2_9R +
+  v32_SSRI +
+  im_fasting_sample +
+  SIN_366_preg +
+  COS_366_preg,
+  data = d
+  )
+```
+
+Testing the significance of the 366 day period cosine functions (they are significant):
+```{r}
+anova(fitNo366,fitFull)
+```
+
+
+Testing the significance of the 183 day period cosine functions (they are significant):
+```{r}
+anova(fitNo183,fitFull)
+```
+
+\newpage
+
+## Graphical interpretation
+
+```{r, fig.height=4}
+estimates <- coef(fitFull)
+sin366 <- estimates[names(estimates)=="SIN_366_preg"]
+cos366 <- estimates[names(estimates)=="COS_366_preg"]
+
+sin183 <- estimates[names(estimates)=="SIN_183_preg"]
+cos183 <- estimates[names(estimates)=="COS_183_preg"]
+
+estimates366 <- sin366*sin(c(1:366)/366*2*pi) + cos366*cos(c(1:366)/366*2*pi)
+estimates183 <- sin183*sin(c(1:366)/183*2*pi) + cos183*cos(c(1:366)/183*2*pi)
+
+plot <- data.table(estimates366,estimates183,day=c(1:366))
+plot[,estimatesBoth:=estimates366+estimates183]
+plot <- melt.data.table(plot,id="day")
+switch <- c("estimatesBoth"="Combined",
+            "estimates183"="183 day period",
+            "estimates366"="366 day period")
+RAWmisc::RecodeDT(plot,switch,"variable")
+plot[,variable:=factor(variable,levels=switch)]
+
+q <- ggplot(plot, aes(x=day,y=value,colour=variable))
+q <- q + geom_line()
+q <- q + scale_x_continuous("Day")
+q <- q + scale_y_continuous("Effect on IF Marker")
+q <- q + scale_color_brewer("",palette="Set1")
+q
+```
+
+
+## Interpretation of 366 day period cosine functions
+
+Let us focus on your regression estimates for the 366 day period cosine functions, where we will call $b_1$ and $b_2$ the coefficients for SIN366 and COS366 respectively.
+
+```{r}
+estimates <- coef(fitFull)
+b1 <- estimates[names(estimates)=="SIN_366_preg"]
+b2 <- estimates[names(estimates)=="COS_366_preg"]
+
+t <- atan(b1/b2)*366/2/pi
+```
+
+$$
+\begin{aligned}
+\begin{split}
+               T ={}& \text{Period} \\
+                 ={}& \text{366 days} \\
+\text{Amplitude} ={}& \sqrt{b_1^2+b_2^2} \\
+                 ={}& \sqrt{ `r formatC(b1,digits=2,format="f")`^2 + `r formatC(b2,digits=2,format="f")`^2 }\\
+                 ={}& `r formatC(sqrt(b1^2+b2^2),digits=2,format="f")` \\
+               t ={}& \text{Precursor to location of peaks/troughs} \\
+                 ={}& \text{arctan}(b_1 / b_2) \times T / 2 / \pi \\
+                 ={}& \text{arctan}( `r formatC(b1,digits=2,format="f")` / `r formatC(b2,digits=2,format="f")`) \times 366 / 2 / \pi \\
+                 ={}& `r formatC(t, digits=0, format="f")`
+\end{split}\\
+\end{aligned}
+$$
+
+If $b_1$/ $b_2$ = `r formatC(b1,digits=2,format="f")` / `r formatC(b2,digits=2,format="f")` = `r formatC(b1/b2,digits=2,format="f")` > 0, then t > 0 and indicates the first extreme; the other extreme value is found at t + T/2. If  $b_1$/ $b_2$ < 0, then t < 0; the extreme values are found at t + T/2 and at t+T. If $b_1$ > 0,the first extreme is a maximum and the second a minimum;
+
+t = `r formatC(t, digits=0, format="f")` > 0, which means the maximum (peak) is at `r formatC(t, digits=0, format="f")` days and the minimum (trough) is at `r formatC(t+366/2, digits=0, format="f")` days.
+
+\newpage
+
+## Interpretation of 183 day period cosine functions
+
+Let us focus on your regression estimates for the 183 day period cosine functions, where we will call $b_1$ and $b_2$ the coefficients for SIN183 and COS183 respectively.
+
+```{r}
+estimates <- coef(fitFull)
+b1 <- estimates[names(estimates)=="SIN_183_preg"]
+b2 <- estimates[names(estimates)=="COS_183_preg"]
+
+t <- atan(b1/b2)*183/2/pi
+```
+
+$$
+\begin{aligned}
+\begin{split}
+               T ={}& \text{Period} \\
+                 ={}& \text{183 days} \\
+\text{Amplitude} ={}& \sqrt{b_1^2+b_2^2} \\
+                 ={}& \sqrt{ `r formatC(b1,digits=2,format="f")`^2 + `r formatC(b2,digits=2,format="f")`^2 }\\
+                 ={}& `r formatC(sqrt(b1^2+b2^2),digits=2,format="f")` \\
+               t ={}& \text{Precursor to location of peaks/troughs} \\
+                 ={}& \text{arctan}(b_1 / b_2) \times T / 2 / \pi \\
+                 ={}& \text{arctan}( `r formatC(b1,digits=2,format="f")` / `r formatC(b2,digits=2,format="f")`) \times 183 / 2 / \pi \\
+                 ={}& `r formatC(t, digits=0, format="f")`
+\end{split}\\
+\end{aligned}
+$$
+
+If $b_1$/ $b_2$ = `r formatC(b1,digits=2,format="f")` / `r formatC(b2,digits=2,format="f")` = `r formatC(b1/b2,digits=2,format="f")` > 0, then t > 0 and indicates the first extreme; the other extreme value is found at t + T/2. If  $b_1$/ $b_2$ < 0, then t < 0; the extreme values are found at t + T/2 and at t+T. If $b_1$ > 0,the first extreme is a maximum and the second a minimum;
+
+t = `r formatC(t, digits=0, format="f")` > 0, which means the maximum (peak) is at `r formatC(t, digits=0, format="f")` and `r formatC(t+183, digits=0, format="f")` days and the minimum (trough) is at `r formatC(t+183/2, digits=0, format="f")` and `r formatC(t+183/2+183, digits=0, format="f")` days.
+
+
+

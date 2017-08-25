@@ -1,0 +1,32 @@
+---
+title: "R Notebook"
+output:
+  word_document: default
+---
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+RAWmisc::InitialiseProject(
+  HOME = "/git/code_minor/hanna_paper_elin/",
+  RAW = "/analyses/data_raw/hanna_paper_elin/",
+  CLEAN = "/analyses/data_clean/hanna_paper_elin",
+  BAKED = "/analyses/results_baked/hanna_paper_elin/",
+  FINAL = "/analyses/results_final/hanna_paper_elin/",
+  SHARED = "/dropbox/results_shared/hanna_paper_elin/")
+```
+
+## Data cleaning
+
+- We remove all IFs with 25%+ <LOD (the bias becomes too big, the data is unuseable)
+- We then replace <LOD with LOD/sqrt(2) (this is allowed, and doesn't bias the data badly because we have restricted it to IFs with <25% data under LOD: http://analytics.ncsu.edu/sesug/2003/SD08-Croghan.pdf)
+
+Note that all values are log(values). This is base E.
+
+The previous paper with Emma was log2(values+1). This was previously chosen for some statistical principles that were nice (i.e. using log2 means that for every unit increase in log-space, the real value doubles). However I have now changed it here to be log(values) because this is a more standard formulation that the scientific community is used to.
+
+The previous paper with Emma included all IFs with 50%+ of the data >LODs (we are using 75%). I decided to make the cutoff more stringent here, as here we are making the data "general" for a "general paper", so it is nice to have stringent cutoffs, as there aren't any specific cases that we can use to justify different cutoffs in advance.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+numbers <- readRDS(file.path(RAWmisc::PROJ$BAKED,"numbers.RDS"))
+
+print(numbers)
+```
+
