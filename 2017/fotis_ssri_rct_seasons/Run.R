@@ -8,6 +8,8 @@ RAWmisc::InitialiseProject(
   SHARED = "/dropbox/results_shared/code_minor/2017/fotis_ssri_rct_seasons/"
 )
 
+dir.create(RAWmisc::PROJ$SHARED_TODAY)
+
 library(data.table)
 library(lme4)
 
@@ -51,6 +53,8 @@ ExtractEffectEstimates <- function(beta, va, nameBase, nameInteractions){
 }
 
 d <- data.table(haven::read_dta(file.path(RAWmisc::PROJ$RAW,"FINAL DATA.dta")))
+d[,isWinter:=0]
+d[start_season==0,isWinter:=1]
 nrow(d)
 names(d)
 
@@ -146,5 +150,82 @@ final[,p:=RAWmisc::Format(p,3)]
 final[,pval0vs1:=RAWmisc::Format(pval0vs1,3)]
 final[,pval1vs2:=RAWmisc::Format(pval1vs2,3)]
 
-openxlsx::write.xlsx(final, file=file.path(RAWmisc::PROJ$SHARED_TODAY,"mixed_effects_models.xlsx"))
+openxlsx::write.xlsx(final, file=file.path(RAWmisc::PROJ$SHARED_TODAY,"mixed_effects_models_season.xlsx"))
+
+
+#### WINTER
+
+results <- vector("list",length=100)
+resultsIndex <- 0
+pb <- RAWmisc::ProgressBarCreate(max=length(outcomes))
+for(i in 1:length(outcomes)){
+  RAWmisc::ProgressBarSet(pb,i)
+  form0 <- sprintf("%s ~ isActiveTreatment + (1|study)", outcomes[i])
+  form1 <- sprintf("%s ~ isActiveTreatment + isWinter + (1|study)", outcomes[i])
+  form2 <- sprintf("%s ~ isActiveTreatment*isWinter + (1|study)", outcomes[i])
+  
+  if(stringr::str_extract(outcomes[i],"^[a-z][a-z][a-z]") %in% c("ham")){
+    fit0 <- lme4::`glmer.nb`(as.formula(form0), data=d)
+    fit1 <- lme4::`glmer.nb`(as.formula(form1), data=d)
+    fit2 <- lme4::`glmer.nb`(as.formula(form2), data=d)
+  } else {
+    fit0 <- lme4::glmer(as.formula(form0), data=d, family=binomial)
+    fit1 <- lme4::glmer(as.formula(form1), data=d, family=binomial)
+    fit2 <- lme4::glmer(as.formula(form2), data=d, family=binomial)
+  }
+  
+  resultsIndex <- resultsIndex + 1
+  results[[resultsIndex]] <- as.data.frame(coef(summary(fit0)))
+  results[[resultsIndex]]$var <- row.names(results[[resultsIndex]])
+  setnames(results[[resultsIndex]],c("beta","se","z","p","var"))
+  results[[resultsIndex]]$outcome <- outcomes[i]
+  results[[resultsIndex]]$model <- 0
+  results[[resultsIndex]]$pval0vs1 <- anova(fit1,fit0)$`Pr(>Chisq)`[2]
+  results[[resultsIndex]]$pval1vs2 <- anova(fit2,fit1)$`Pr(>Chisq)`[2]
+  
+  resultsIndex <- resultsIndex + 1
+  results[[resultsIndex]] <- as.data.frame(coef(summary(fit1)))
+  results[[resultsIndex]]$var <- row.names(results[[resultsIndex]])
+  setnames(results[[resultsIndex]],c("beta","se","z","p","var"))
+  results[[resultsIndex]]$outcome <- outcomes[i]
+  results[[resultsIndex]]$model <- 1
+  results[[resultsIndex]]$pval0vs1 <- anova(fit1,fit0)$`Pr(>Chisq)`[2]
+  results[[resultsIndex]]$pval1vs2 <- anova(fit2,fit1)$`Pr(>Chisq)`[2]
+  
+  resultsIndex <- resultsIndex + 1
+  results[[resultsIndex]] <- as.data.frame(coef(summary(fit2)))
+  results[[resultsIndex]]$var <- row.names(results[[resultsIndex]])
+  setnames(results[[resultsIndex]],c("beta","se","z","p","var"))
+  results[[resultsIndex]]$outcome <- outcomes[i]
+  results[[resultsIndex]]$model <- 2
+  results[[resultsIndex]]$pval0vs1 <- anova(fit1,fit0)$`Pr(>Chisq)`[2]
+  results[[resultsIndex]]$pval1vs2 <- anova(fit2,fit1)$`Pr(>Chisq)`[2]
+  
+  strat <- ExtractEffectEstimates(
+    beta=coef(fit2)$study[1,],
+    va=vcov(fit2),
+    nameBase="isActiveTreatment",
+    nameInteractions="isActiveTreatment:isWinter"
+  )
+  seasons <- c("Not winter","Winter")
+  for(i in 1:2){
+    results[[resultsIndex]]$var[i] <- sprintf("isActiveTreatment(%s)",seasons[i])
+    results[[resultsIndex]]$beta[i] <- strat$beta[i]
+    results[[resultsIndex]]$se[i] <- strat$se[i]
+    results[[resultsIndex]]$p[i] <- strat$p[i]
+  }
+  results[[resultsIndex]] <- results[[resultsIndex]][1:2,]
+}
+
+results <- rbindlist(results)
+
+results[,est:=FormatEstCIFromEstSE(beta,se)]
+
+final <- results[stringr::str_detect(var,"^isActiveTreatment"),c("outcome","model","var","est","p","pval0vs1","pval1vs2")]
+final[p<0.05,est:=paste0(est,"*")]
+final[,p:=RAWmisc::Format(p,3)]
+final[,pval0vs1:=RAWmisc::Format(pval0vs1,3)]
+final[,pval1vs2:=RAWmisc::Format(pval1vs2,3)]
+
+openxlsx::write.xlsx(final, file=file.path(RAWmisc::PROJ$SHARED_TODAY,"mixed_effects_models_winter_vs_not.xlsx"))
 

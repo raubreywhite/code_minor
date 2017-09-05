@@ -136,12 +136,12 @@
 
 RAWmisc::AllowFileManipulationFromInitialiseProject()
 RAWmisc::InitialiseProject(
-  HOME = "/git/code_minor/emma_depression_pp_if/",
-  RAW = "/analyses/data_raw/code_minor/emma_depression_pp_if/",
-  CLEAN = "/analyses/data_clean/code_minor/emma_depression_pp_if",
-  BAKED = "/analyses/results_baked/code_minor/emma_depression_pp_if/",
-  FINAL = "/analyses/results_final/code_minor/emma_depression_pp_if/",
-  SHARED = "/dropbox/results_shared/emma_depression_pp_if/"
+  HOME = "/git/code_minor/2017/emma_depression_pp_if/",
+  RAW = "/analyses/data_raw/code_minor/2017/emma_depression_pp_if/",
+  CLEAN = "/analyses/data_clean/code_minor/2017/emma_depression_pp_if",
+  BAKED = "/analyses/results_baked/code_minor/2017/emma_depression_pp_if/",
+  FINAL = "/analyses/results_final/code_minor/2017/emma_depression_pp_if/",
+  SHARED = "/dropbox/results_shared/code_minor/2017/emma_depression_pp_if/"
 )
 dir.create(RAWmisc::PROJ$SHARED_TODAY)
 library(data.table)
@@ -149,6 +149,7 @@ library(mice)
 
 d <- haven::read_sav(file.path(RAWmisc::PROJ$RAW,"PParticle 170713EB.sav"))
 nrow(d)
+mean(d$im_134_SLAMF1_pp,na.rm=T)
 
 xtabs(~d$sensitivity_analysis_groups)
 xtabs(~d$main_analysis_groups)
@@ -183,20 +184,22 @@ d <- data.table(d)
 # Fixing LODS
 # im_103_BDNF_pp
 IFs <- names(d)[49:119]
+IFandZ <- c(IFs,"Infl_RWall_meanZPP")
 file <- file.path(RAWmisc::PROJ$RAW,"lod.txt")
 lod <- as.data.frame(fread(file))
 lod$lod <- as.numeric(stringr::str_replace_all(lod$lod, ",", "."))
 lod$imNum <- stringr::str_extract(lod$factor, "^[0-9][0-9][0-9]")
 lod <- lod[,-1]
-lod$lod <- exp(lod$lod)
+lod$lod <- 2^(lod$lod)
 
 for(i in 1:length(IFs)){
   IF <- stringr::str_extract(IFs[i], "[0-9][0-9][0-9]")
-  d[[IFs[i]]] <- exp(d[[IFs[i]]])
+  d[[IFs[i]]] <- 2^(d[[IFs[i]]])
   if(sum(is.nan(d[[IFs[i]]]))>0){
     d[is.nan(eval(parse(text=IFs[i])))][[IFs[i]]] <- lod$lod[lod$imNum==IF]/sqrt(2)
   }
-  d[[IFs[i]]] <- log(d[[IFs[i]]])
+  # CONVERTING TO BASE 2
+  d[[IFs[i]]] <- log2(d[[IFs[i]]])
 }
 
 # putting in missing manually
@@ -275,17 +278,17 @@ confoundersDecided <- c("breastfeeding_6vpp","antidepressives_emma","mini","hist
 # main_analysis_groups 1 (A --) vs 2 (BC x+)
 # Table 3 B
 # sensitivity_analysis_groups 1 (A --) vs 2 (B -+), 1 (A --) vs 3 (C ++), 2 (B -+) vs 3 (C ++)
-dataUnimp <- d[!is.na(outcomeMain),c("outcomeMain",confoundersDecided,IFs),with=F]
+dataUnimp <- d[!is.na(outcomeMain),c("outcomeMain",confoundersDecided,IFandZ),with=F]
 dataImp <- mice(dataUnimp, method="pmm", seed=4, m=10)
 
 res <- vector("list",1000)
 resIndex <- 1
-for(i in 1:length(IFs)) for(m in c("crude","adjusted")) {
+for(i in 1:length(IFandZ)) for(m in c("crude","adjusted")) {
   outcome <- "outcomeMain"
   if(m=="crude"){
-    formula <- sprintf("%s ~ %s",outcome,IFs[i])  
+    formula <- sprintf("%s ~ %s",outcome,IFandZ[i])  
   } else if(m=="adjusted"){
-    formula <- sprintf("%s ~ %s + %s",outcome,IFs[i],paste(confoundersDecided,collapse="+"))
+    formula <- sprintf("%s ~ %s + %s",outcome,IFandZ[i],paste(confoundersDecided,collapse="+"))
   }
   
   fit <- with(dataImp, glm2::glm2(as.formula(formula)))
@@ -314,7 +317,7 @@ for(i in 1:length(IFs)) for(m in c("crude","adjusted")) {
       N=.N
       ),
   by=.(outcomeMain,imp),
-  .SDcols=IFs[i]]
+  .SDcols=IFandZ[i]]
   td[,SD:=U]
   td[,U:=as.numeric(U/N)]
   td[,N:=NULL]
@@ -350,6 +353,7 @@ set.seed(4)
 lasso <- vector("list",dataImp$m)
 for(i in 1:dataImp$m){
   fitData <- complete(dataImp,i)
+  fitData <- fitData[-ncol(fitData)]
   fit <- glmnet::cv.glmnet(as.matrix(fitData)[,-1],fitData[,1], nfolds=nrow(dataUnimp))
   lasso[[i]] <- data.frame(as.matrix(coef(fit)))
   lasso[[i]]$var <- row.names(lasso[[i]])
@@ -370,7 +374,7 @@ res[,varNum:=NULL]
 res <- dcast.data.table(res,var~model,value.var = c("est","p","lo.95","hi.95","nmis","outcomeCases","outcomeControls","outcomeMissing","meanExposureCases","meanExposureCasesSD","meanExposureControls","meanExposureControlsSD"))
 res[var=="im_101_IL8_pp"]
 
-finalRes <- merge(res,lasso,by="var")
+finalRes <- merge(res,lasso,by="var",all.x=T)
 finalRes[,crude:=sprintf("%s (%s, %s)",
                          RAWmisc::Format(exp(est_crude),2),
                          RAWmisc::Format(exp(lo.95_crude),2),
