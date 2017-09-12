@@ -12,10 +12,15 @@ library(data.table)
 library(ggplot2)
 library(mice)
 
-masterdata <- data.table(openxlsx::read.xlsx(file.path(RAWmisc::PROJ$RAW,"uppstart_prediction_170824c.xlsx"),sheet="Blad1"))
+masterdata <- data.table(openxlsx::read.xlsx(file.path(RAWmisc::PROJ$RAW,"Uppstart-predicition_alcohol.xlsx")))
 nrow(masterdata)
 names(masterdata)
 masterdata <- masterdata[SEX==2]
+
+masterdata[,ULJ_HOGER_AFC:=as.numeric(stringr::str_replace_all(ULJ_HOGER_AFC," ",""))]
+masterdata[,ULJ_VANSTER_AFC:=as.numeric(stringr::str_replace_all(ULJ_VANSTER_AFC," ",""))]
+masterdata[is.na(ULJ_HOGER_AFC),ULJ_HOGER_AFC:=0]
+masterdata[is.na(ULJ_VANSTER_AFC),ULJ_VANSTER_AFC:=0]
 
 masterdata[,AFC_TOTAL:=ULJ_HOGER_AFC+ULJ_VANSTER_AFC]
 masterdata[previous_child==1,gravid:=1]

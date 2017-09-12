@@ -15,6 +15,7 @@ library(ggplot2)
 
 ifs <- data.table(openxlsx::read.xlsx(file.path(RAWmisc::PROJ$RAW,"Poroma PEA results final.xlsx"),sheet=2))
 ifs[Sample.ID=="1276",Sample.ID:=1267]
+dim(ifs)
 
 ifs <- melt.data.table(ifs,id="Sample.ID", variable.factor=F)
 setnames(ifs,c("CustomDataR","IF","val"))
@@ -59,4 +60,7 @@ dim(ifs)
 
 saveRDS(ifs,file=file.path(RAWmisc::PROJ$CLEAN,"inflammation_markers_log2_with_lod_sqrt2.RDS"))
 openxlsx::write.xlsx(ifs,file=file.path(RAWmisc::PROJ$SHARED_TODAY,"inflammation_markers_log2_with_lod_sqrt2.xlsx"))
+
+
+sum(!is.na(ifs$im_log2_101_IL_8_pg))+sum(!is.na(ifs$im_log2_101_IL_8_pp))
 

@@ -12,9 +12,11 @@ dir.create(RAWmisc::PROJ$SHARED_TODAY)
 library(data.table)
 library(ggplot2)
 library(mice)
-library(lavaan)
 
 masterdata <- data.table(openxlsx::read.xlsx(file.path(RAWmisc::PROJ$RAW,"pathData20170707.xlsx")))
+
+nrow(masterdata)
+xtabs(~masterdata$n_maltreatmentSyndrome)
 
 outcome <- "n_maltreatmentSyndrome"
 var <- c(
