@@ -78,7 +78,7 @@ COVAR <- c(
 ##### CLEANING THE DATA FOR THE NORMAL ANALYSES (i.e. ANALYSES 1 AND 2)
 ## READ IN DATA
 ## CATHRINE YOU WILL NEED TO CHANGE THIS
-d <- haven::read_spss("/analyses/data_raw/cathrine_ppd_aa_genotypes/Pek3 PPD ASQ OXT LITE 1631.sav")
+d <- haven::read_spss("/analyses/data_raw/code_minor/2017/cathrine_ppd_aa_genotypes/Pek3 PPD ASQ OXT LITE 1631.sav")
 
 ## APPLY FACTOR LABELS TO SNPs THAT DONT NEED TO BE RECATEGORIZED
 for(s in UNRECATEGORIZED_SNPs){
