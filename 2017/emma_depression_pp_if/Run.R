@@ -147,9 +147,9 @@ dir.create(RAWmisc::PROJ$SHARED_TODAY)
 library(data.table)
 library(mice)
 
-d <- haven::read_sav(file.path(RAWmisc::PROJ$RAW,"PParticle 170713EB.sav"))
+d <- haven::read_sav(file.path(RAWmisc::PROJ$RAW,"PParticle 170915EB_2 .sav"))
 nrow(d)
-mean(d$im_134_SLAMF1_pp,na.rm=T)
+mean(d$im_log2_134_SLAMF1_pp,na.rm=T)
 
 xtabs(~d$sensitivity_analysis_groups)
 xtabs(~d$main_analysis_groups)
@@ -183,32 +183,20 @@ d <- data.table(d)
 
 # Fixing LODS
 # im_103_BDNF_pp
-IFs <- names(d)[49:119]
-IFandZ <- c(IFs,"Infl_RWall_meanZPP")
-file <- file.path(RAWmisc::PROJ$RAW,"lod.txt")
-lod <- as.data.frame(fread(file))
-lod$lod <- as.numeric(stringr::str_replace_all(lod$lod, ",", "."))
-lod$imNum <- stringr::str_extract(lod$factor, "^[0-9][0-9][0-9]")
-lod <- lod[,-1]
-lod$lod <- 2^(lod$lod)
+IFs <- names(d)
+IFs <- IFs[stringr::str_detect(IFs,"^im_log2_")]
+underLOD <- names(d)
+underLOD <- underLOD[stringr::str_detect(underLOD,"^underLOD_")]
 
-for(i in 1:length(IFs)){
-  IF <- stringr::str_extract(IFs[i], "[0-9][0-9][0-9]")
-  d[[IFs[i]]] <- 2^(d[[IFs[i]]])
-  if(sum(is.nan(d[[IFs[i]]]))>0){
-    d[is.nan(eval(parse(text=IFs[i])))][[IFs[i]]] <- lod$lod[lod$imNum==IF]/sqrt(2)
-  }
-  # CONVERTING TO BASE 2
-  d[[IFs[i]]] <- log2(d[[IFs[i]]])
+percUnderLOD <- vector("list",length=length(underLOD))
+for(i in 1:length(percUnderLOD)){
+  percUnderLOD[[i]] <- data.frame(perc=mean(d[[underLOD[i]]],na.rm=T),var=underLOD[i])
 }
+percUnderLOD <- rbindlist(percUnderLOD)
+percUnderLOD[,IFs:=IFs]
 
-# putting in missing manually
-#d[]
-#4686
-#4867
-#5449
-d$im_101_IL8_pp[1] <- NA
-
+IFs <- percUnderLOD[perc<0.5]$IFs
+IFandZ <- c(IFs,"Infl_RWall_meanZPP")
 
 # Determining confounders
 confoundersRemoved <- c(
@@ -279,6 +267,8 @@ confoundersDecided <- c("breastfeeding_6vpp","antidepressives_emma","mini","hist
 # Table 3 B
 # sensitivity_analysis_groups 1 (A --) vs 2 (B -+), 1 (A --) vs 3 (C ++), 2 (B -+) vs 3 (C ++)
 dataUnimp <- d[!is.na(outcomeMain),c("outcomeMain",confoundersDecided,IFandZ),with=F]
+dataUnimp[,x:=rnorm(.N)]
+dataUnimp[1,x:=NA]
 dataImp <- mice(dataUnimp, method="pmm", seed=4, m=10)
 
 res <- vector("list",1000)
@@ -353,7 +343,8 @@ set.seed(4)
 lasso <- vector("list",dataImp$m)
 for(i in 1:dataImp$m){
   fitData <- complete(dataImp,i)
-  fitData <- fitData[-ncol(fitData)]
+  fitData <- fitData[-ncol(fitData)] # remove x
+  fitData <- fitData[-ncol(fitData)] # remove meanZPP
   fit <- glmnet::cv.glmnet(as.matrix(fitData)[,-1],fitData[,1], nfolds=nrow(dataUnimp))
   lasso[[i]] <- data.frame(as.matrix(coef(fit)))
   lasso[[i]]$var <- row.names(lasso[[i]])
@@ -372,7 +363,7 @@ res[,fmi:=NULL]
 res[,lambda:=NULL]
 res[,varNum:=NULL]
 res <- dcast.data.table(res,var~model,value.var = c("est","p","lo.95","hi.95","nmis","outcomeCases","outcomeControls","outcomeMissing","meanExposureCases","meanExposureCasesSD","meanExposureControls","meanExposureControlsSD"))
-res[var=="im_101_IL8_pp"]
+res[var=="im_log2_101_IL8_pp"]
 
 finalRes <- merge(res,lasso,by="var",all.x=T)
 finalRes[,crude:=sprintf("%s (%s, %s)",
