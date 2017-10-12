@@ -145,6 +145,7 @@ RAWmisc::InitialiseProject(
 )
 dir.create(RAWmisc::PROJ$SHARED_TODAY)
 library(data.table)
+library(ggplot2)
 library(mice)
 
 d <- haven::read_sav(file.path(RAWmisc::PROJ$RAW,"PParticle 170915EB_2 .sav"))
@@ -157,6 +158,13 @@ xtabs(~d$main_analysis_groups)
 d$outcomeMain <- d$main_analysis_groups-1
 d$outcomeMain[d$sensitivity_analysis_groups==4] <- NA
 xtabs(~d$outcomeMain)
+d$outcomeAvsB <- as.numeric(d$outcomeMain)
+d$outcomeAvsB[d$sensitivity_analysis_groups==3] <- NA
+xtabs(~d$outcomeAvsB)
+############MAYBE FIX THIS???
+for(i in 1:10) warning("MAYBE FIX THIS")
+for(i in 1:10) warning("MAYBE FIX THIS")
+d$outcomeMain <- d$outcomeAvsB
 
 # Fixing mini confounders
 d$mini <- 0
@@ -254,13 +262,23 @@ for(i in IFs){
 }
 results <- rbindlist(results)
 results[,change:=(coefAdjusted-coefBase)/coefBase]
-confounders <- results[pvalBase<0.05,.(change=mean(abs(change))),by=confounder]
-setorder(confounders,-change)
+results[,changeMoreThan10:=0]
+results[abs(change)>0.1,changeMoreThan10:=1]
+confounders <- results[pvalBase<0.05,.(averageChange=mean(abs(change)),changeMoreThan10perc=mean(changeMoreThan10)),by=confounder]
+setorder(confounders,-changeMoreThan10perc)
 confounders
 
 openxlsx::write.xlsx(confounders, file.path(RAWmisc::PROJ$SHARED_TODAY,"confounders.xlsx"))
 
-confoundersDecided <- c("breastfeeding_6vpp","antidepressives_emma","mini","history_of_depression")
+#confoundersDecided <- c("breastfeeding_6vpp","antidepressives_emma","mini","history_of_depression")
+confoundersDecided <- c("breastfeeding_6vpp",
+                        "mini",
+                        "age_at_partus_emma",
+                        "history_of_depression",
+                        "employment",
+                        "bloodpressure_med_emma",
+                        "nsaid_emma",
+                        "levaxin_emma")
 
 # Table 3 A
 # main_analysis_groups 1 (A --) vs 2 (BC x+)
@@ -511,3 +529,22 @@ res[,model:=factor(model,levels=c("crude","adjusted"))]
 res <- dcast.data.table(res,comparison+model+variable~var)
 
 openxlsx::write.xlsx(res, file.path(RAWmisc::PROJ$SHARED_TODAY,"sensitivity_logistic_regression_values.xlsx"))
+
+
+toPlot <- dataUnimp[,c("sensitivity_analysis_groups",significantIFs),with=F]
+toPlot[,sensitivity_analysis_groups:=factor(sensitivity_analysis_groups,levels=c(1,2,3))]
+levels(toPlot$sensitivity_analysis_groups) <- c("A (--)","B (-+)","C (++)")
+toPlot[,id:=1:.N]
+
+toPlot <- melt(toPlot,id=c("id","sensitivity_analysis_groups"))
+
+q <- ggplot(toPlot,aes(x=sensitivity_analysis_groups,y=value))
+q <- q + geom_boxplot()
+q <- q + facet_wrap(~variable,scales="free")
+q <- q + scale_x_discrete("")
+q <- q + scale_y_continuous("log2 NPX values")
+q <- q + theme_gray(16)
+RAWmisc::saveA4(q,filename=file.path(RAWmisc::PROJ$SHARED_TODAY,"sensitivity_boxplots.png"))
+
+
+

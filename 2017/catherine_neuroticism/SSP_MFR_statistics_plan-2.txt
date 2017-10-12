@@ -1,0 +1,74 @@
+** NEUROTICISM STUDY = 'SSP MFR study' **
+
+* FILTER: n=1969 *
+Filter_1para_singleton
+
+
+** EXPOSURE **
+Neuroticism
+
+
+** OUTCOMES, ALL ARE BINARY (0/1) **
+Gestational_diabetes_CA
+Gestational_diabetes_LGA_CA
+Gestational_HT_PE_CA
+Planned_CS_analysis_CA
+Induction_analysis_CA
+Emergency_CS_analysis_CA
+VE_analysis_CA
+Uterine_inertia_analysis_CA
+Severe_lacerations_analysis_CA
+Placental_retention_analysis_CA
+Postpartum_hemorrhage_CA
+Premature_w37_analysis_CA
+SGA_analysis_CA
+LGA_analysis_CA
+Apgar5_sub7_CA
+Asphyxia_distress_CA
+Composite_worstcase_wide_CA
+Composite_worstcase_strict_CA
+
+
+** CONFOUNDERS **
+
+* BINARY *
+Education_cat_CA
+ROKGRAV_CA
+Previous_psychiatric_morbidity_CA
+Chronic_somatic_disease_all_CA <- EXCLUDE
+
+* CATEGORICAL, 3 CATEGORIES *
+
+MALDER_cat_CA
+MBMI_cat_CA
+MLANGD_cat_CA
+
+
+
+** UNIVARIABLE ASSOCIATIONS **
+
+* Neuroticism vs 18 outcomes
+* Restricted cubic splines models, ORs for outcome x, of quartiles of N 
+* and per 50 points of N
+* Graphic demonstration
+
+* Neuroticism vs 15 confounders
+* Boxplots
+* Will be shown in table, per quartiles of N
+
+
+** ADJUSTED MODELS **
+
+* Neuroticism vs 18 outcomes
+* Restricted cubic splines models
+* SAME adjustments (the 7 variables under CONFOUNDERS) for each outcome
+* QUESTION: are there too many covariates, taking into account that some outcomes
+* are very rare? Shall we best remove the covariable Chronic_somatic_disease_CA
+* which is ALSO rare?
+
+
+** NOTES **
+
+* No multiple comparison correction planned. Rationale: outcomes have different 
+* pathophysiology and do not belong to same hypothesis.
+

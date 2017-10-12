@@ -16,7 +16,7 @@ library(mice)
 
 lanaOutcomes <- data.table(openxlsx::read.xlsx(file.path(RAWmisc::PROJ$RAW,"Lifestyle_IVF_cases170912.xlsx"))) 
 #lanaOutcomes <- lanaOutcomes[,c("")]
-lana <- data.table(openxlsx::read.xlsx(file.path(RAWmisc::PROJ$RAW,"pek4-IVFcases170816buppstart.xlsx")))
+#lana <- data.table(openxlsx::read.xlsx(file.path(RAWmisc::PROJ$RAW,"pek4-IVFcases170816buppstart.xlsx")))
 lana <- data.table(openxlsx::read.xlsx(file.path(RAWmisc::PROJ$RAW,"Lifestyle_IVF_cases170912.xlsx"))) 
 #variablesFirst[!variablesFirst %in% names(lana)]
 for(i in 1:ncol(lana)) lana[[i]] <- as.numeric(lana[[i]])
@@ -98,8 +98,8 @@ masterdata[,BMI_Category:=cut(BMI,breaks=c(0,18.5,25,100))]
 
 masterdata[,ULJ_HOGER_AFC:=as.numeric(stringr::str_replace_all(ULJ_HOGER_AFC," ",""))]
 masterdata[,ULJ_VANSTER_AFC:=as.numeric(stringr::str_replace_all(ULJ_VANSTER_AFC," ",""))]
-masterdata[is.na(ULJ_HOGER_AFC),ULJ_HOGER_AFC:=0]
-masterdata[is.na(ULJ_VANSTER_AFC),ULJ_VANSTER_AFC:=0]
+#masterdata[is.na(ULJ_HOGER_AFC),ULJ_HOGER_AFC:=0]
+#masterdata[is.na(ULJ_VANSTER_AFC),ULJ_VANSTER_AFC:=0]
 
 masterdata[,AFC_TOTAL:=ULJ_HOGER_AFC+ULJ_VANSTER_AFC]
 
@@ -136,6 +136,23 @@ masterlana <- copy(lana)
 
 #masterdata <- copy(x)
 #lana <- copy(y)
+
+
+#### CHECKING NUMBERS
+nrow(masterlana) #242
+sum(masterlana$ASP_EGG>0,na.rm=T) #235
+sum(masterlana$n_embryo_used>0,na.rm=T) #222
+sum(masterlana$pos_preg>0,na.rm=T) #95
+sum(masterlana$miscarriage_IVF>0,na.rm=T) #17
+sum(masterlana$livbirth_all>0,na.rm=T) #72
+
+nrow(masteranastasia) #432
+sum(masteranastasia$ASP_EGG>0,na.rm=T) #256
+sum(masteranastasia$n_embryo_used>0,na.rm=T) #214
+sum(masteranastasia$pos_preg>0,na.rm=T) #146
+sum(masteranastasia$miscarriage_IVF>0,na.rm=T) #32
+sum(masteranastasia$livebirth_all>0,na.rm=T) #102
+
 
 
 ####
@@ -259,22 +276,26 @@ d <- list()
 d[["egg_asp"]] <- masterdata[!is.na(egg_asp),c(
   "egg_asp",
   "AFC_TOTAL",
+  "AMH",
   variablesFirst
 ),with=F]
 l[["egg_asp"]] <- lana[!is.na(egg_asp),c(
   "egg_asp",
   "AFC_TOTAL",
+  "AMH",
   variablesFirst
 ),with=F]
 ##
 d[["ASP_EGG"]] <- masterdata[!is.na(ASP_EGG),c(
   "ASP_EGG",
   "AFC_TOTAL",
+  "AMH",
   variablesFirst
   ),with=F]
 l[["ASP_EGG"]] <- lana[!is.na(ASP_EGG),c(
   "ASP_EGG",
   "AFC_TOTAL",
+  "AMH",
   variablesFirst
 ),with=F]
 ##
@@ -282,12 +303,14 @@ d[["n_embryo_created"]] <- masterdata[!is.na(n_embryo_created),c(
   "n_embryo_created",
   "ASP_EGG",
   "AFC_TOTAL",
+  "AMH",
   variablesFirst
 ),with=F]
 l[["n_embryo_created"]] <- lana[!is.na(n_embryo_created),c(
   "n_embryo_created",
   "ASP_EGG",
   "AFC_TOTAL",
+  "AMH",
   variablesFirst
 ),with=F]
 ##
@@ -295,12 +318,14 @@ d[["n_embryo_used"]] <- masterdata[!is.na(n_embryo_used),c(
   "n_embryo_used",
   "ASP_EGG",
   "AFC_TOTAL",
+  "AMH",
   variablesFirst
 ),with=F]
 l[["n_embryo_used"]] <- lana[!is.na(n_embryo_used),c(
   "n_embryo_used",
   "ASP_EGG",
   "AFC_TOTAL",
+  "AMH",
   variablesFirst
 ),with=F]
 ##
@@ -308,12 +333,14 @@ d[["n_mature_egg"]] <- masterdata[!is.na(n_mature_egg),c(
   "n_mature_egg",
   "ASP_EGG",
   "AFC_TOTAL",
+  "AMH",
   variablesFirst
 ),with=F]
 l[["n_mature_egg"]] <- lana[!is.na(n_mature_egg),c(
   "n_mature_egg",
   "ASP_EGG",
   "AFC_TOTAL",
+  "AMH",
   variablesFirst
 ),with=F]
 ##
@@ -374,9 +401,31 @@ l[["livebirth_ET"]] <- lana[!is.na(livebirth_ET),c(
 
 ldata <- data <- list()
 for(i in outcomes){
-  data[[i]] <- mice::mice(d[[i]], m=5, method="pmm")
-  if(!is.null(l[[i]])) ldata[[i]] <- mice::mice(l[[i]], m=5, method="pmm")
+  data[[i]] <- mice::mice(d[[i]], m=20, method="pmm", seed=4)
+  if(!is.null(l[[i]])) ldata[[i]] <- mice::mice(l[[i]], m=20, method="pmm", seed=4)
+  
+  openxlsx::write.xlsx(d[[i]][,1:2],file=file.path(RAWmisc::PROJ$SHARED_TODAY,sprintf("sample_sizes_anastasia_%s.xlsx",i)))
+  openxlsx::write.xlsx(l[[i]][,1:2],file=file.path(RAWmisc::PROJ$SHARED_TODAY,sprintf("sample_sizes_lana_%s.xlsx",i)))
 }
+
+plotData <- rbind(data[["n_mature_egg"]]$data,complete(data[["n_mature_egg"]],1))
+plotData$id <- rep(1:nrow(data[["n_mature_egg"]]$data),2)
+plotData$imputed <- "Imputed"
+plotData$imputed[1:nrow(data[["n_mature_egg"]]$data)] <- "Real data"
+plotData <- data.table(plotData)
+
+ids <- plotData[imputed=="Real data" & !is.na(AMH)]$id
+plotData[imputed=="Imputed" & id %in% ids,AMH:=NA]
+
+q <- ggplot(plotData,aes(x=AMH,y=AFC_TOTAL,color=imputed))
+q <- q + geom_point(data=plotData[imputed=="Real data"])
+q <- q + geom_point(data=plotData[imputed=="Imputed"])
+q <- q + scale_color_brewer(palette="Set1")
+q <- q + scale_x_continuous(lim=c(0,25))
+q <- q + theme_gray(16)
+RAWmisc::saveA4(q,file.path(RAWmisc::PROJ$SHARED_TODAY,"afc_imputation.png"))
+
+
 
 
 models1 <- vector("list",length=100)
@@ -438,9 +487,11 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
     OFFSET <- ""
     if(sum(exposures=="ASP_EGG")>0){
       exposures <- exposures[-which(exposures=="ASP_EGG")]
-      if(denominator=="denominator_asp_egg") OFFSET <- "offset(log(ASP_EGG+1))+"
+      if(denominator=="denominator_asp_egg") OFFSET <- "offset(log(ASP_EGG))+"
     }
     exposures <- exposures[-which(exposures=="AFC_TOTAL")]
+    exposures <- exposures[-which(exposures=="AMH")]
+    
     includedExposures <- c()
     
     explan <- vector("list",length=length(exposures))
@@ -448,7 +499,11 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
     formulaFull <- sprintf("%s~%s",outcome,paste0(exposures,collapse="+"))
     
     fitFull <- tryCatch({
-      with(useData, glm(as.formula(formulaFull), family=family))
+      if(denominator=="denominator_asp_egg"){
+        with(useData, glm(as.formula(formulaFull), family=family, subset=(ASP_EGG>0)))
+      } else {
+        with(useData, glm(as.formula(formulaFull), family=family))
+      }
     }, warning=function(err){
         NULL
     })
@@ -467,7 +522,11 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
     for(j in 1:length(exposures)){
       
       fit1 <- tryCatch({
-        with(useData, glm(as.formula(sprintf("%s~%s %s",outcome,OFFSET, exposures[j])), family=family))
+        if(denominator=="denominator_asp_egg"){
+          with(useData, glm(as.formula(sprintf("%s~%s %s",outcome,OFFSET, exposures[j])), family=family, subset=(ASP_EGG>0)))
+        } else {
+          with(useData, glm(as.formula(sprintf("%s~%s %s",outcome,OFFSET, exposures[j])), family=family))
+        }
       }, warning=function(err){
         NULL
       })
@@ -480,12 +539,20 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
           names(resC[[j]]) <- c("Cbeta","Cse","Cp","var")
           
           fit0x <- tryCatch({
-            with(useData, glm(as.formula(sprintf("%s~%s %s + AFC_TOTAL",outcome,OFFSET, exposures[j])), family=family))
+            if(denominator=="denominator_asp_egg"){
+              with(useData, glm(as.formula(sprintf("%s~%s %s + AFC_TOTAL",outcome,OFFSET, exposures[j])), family=family, subset=(ASP_EGG>0)))
+            } else {
+              with(useData, glm(as.formula(sprintf("%s~%s %s + AFC_TOTAL",outcome,OFFSET, exposures[j])), family=family))
+            }
           }, warning=function(err){
             NULL
           })
           fit1x <- tryCatch({
-            with(useData, glm(as.formula(sprintf("%s~%s %s*AFC_TOTAL",outcome,OFFSET, exposures[j])), family=family))
+            if(denominator=="denominator_asp_egg"){
+              with(useData, glm(as.formula(sprintf("%s~%s %s*AFC_TOTAL",outcome,OFFSET, exposures[j])), family=family, subset=(ASP_EGG>0)))
+            } else {
+              with(useData, glm(as.formula(sprintf("%s~%s %s*AFC_TOTAL",outcome,OFFSET, exposures[j])), family=family))
+            }
           }, warning=function(err){
             NULL
           })
@@ -572,7 +639,11 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
     
     newData <- as.mids(newData)
     fit0 <- tryCatch({
-      with(newData, glm(as.formula(sprintf("%s~%s 1",outcome, OFFSET)), family=family))
+      if(denominator=="denominator_asp_egg"){
+        with(newData, glm(as.formula(sprintf("%s~%s 1",outcome, OFFSET)), family=family, subset=(ASP_EGG>0)))
+      } else {
+        with(newData, glm(as.formula(sprintf("%s~%s 1",outcome, OFFSET)), family=family))
+      }
     }, warning=function(err){
       NULL
     })
@@ -580,7 +651,11 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
     #formulaRisk <- sprintf("%s~as.factor(risk_factors)",outcome)
     formulaRisk <- sprintf("%s~%s as.factor(risk_factors)",outcome, OFFSET)
     fit1 <- tryCatch({
-      with(newData, glm(as.formula(formulaRisk), family=family))
+      if(denominator=="denominator_asp_egg"){
+        with(newData, glm(as.formula(formulaRisk), family=family, subset=(ASP_EGG>0)))
+      } else {
+        with(newData, glm(as.formula(formulaRisk), family=family))
+      }
     }, warning=function(err){
       NULL
     })
@@ -608,14 +683,22 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
     
     formulaInteractedAFCRisk <- sprintf("%s~%s AFC_TOTAL*as.factor(risk_factors)",outcome, OFFSET)
     fit1 <- tryCatch({
-      with(newData, glm(as.formula(formulaInteractedAFCRisk), family=family))
+      if(denominator=="denominator_asp_egg"){
+        with(newData, glm(as.formula(formulaInteractedAFCRisk), family=family, subset=(ASP_EGG>0)))
+      } else {
+        with(newData, glm(as.formula(formulaInteractedAFCRisk), family=family))
+      }
     }, warning=function(err){
       NULL
     })
     
     formulaWithAFCRisk <- sprintf("%s~%s AFC_TOTAL + as.factor(risk_factors)",outcome, OFFSET)
     fit0 <- tryCatch({
-      with(newData, glm(as.formula(formulaWithAFCRisk), family=family))
+      if(denominator=="denominator_asp_egg"){
+        with(newData, glm(as.formula(formulaWithAFCRisk), family=family, subset=(ASP_EGG>0)))
+      } else {
+        with(newData, glm(as.formula(formulaWithAFCRisk), family=family))
+      }
     }, warning=function(err){
       NULL
     })
@@ -652,7 +735,8 @@ retval1[,decision:="Non-significant cumulative risk factor"]
 retval1[N==1,decision:="Only 1 risk factor"]
 retval1[N>1 & Cp<"0.100",decision:="Borderline significant cumulative risk factor"]
 retval1[N>1 & Cp<"0.050",decision:="Significant cumulative risk factor"]
-retval1[N>1 & IntP<"0.100",decision:="Borderline significant interaction with AFC"]
+#retval1[N>1 & IntP<"0.100",decision:="Borderline significant interaction with AFC"]
+retval1[N>1 & IntP<"0.050",decision:="Significant interaction with AFC"]
 
 retval1[crude!="1 (ref)",Cp:=""]
 retval1[crude!="1 (ref)",IntP:=""]
@@ -738,6 +822,7 @@ q <- q + facet_wrap(~facet,ncol=1)
 q <- q + geom_label(aes(label=RAWmisc::Format(b,2),y=u95+0.04))
 q <- q + scale_y_continuous("Incidence rate ratio")
 q <- q + scale_x_continuous("AFC")
+q <- q + theme_gray(16)
 q
 
 RAWmisc::saveA4(q,file.path(RAWmisc::PROJ$SHARED_TODAY,sprintf("FINAL_INTERACTION_%s_%s.png",outcome,denominator)))
