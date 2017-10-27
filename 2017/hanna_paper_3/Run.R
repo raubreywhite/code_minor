@@ -131,6 +131,11 @@ pp_ims <- pp_ims[pp_pcUnderLOD<0.25]
 pg_ims <- c(paste0("im_log2_",pg_ims),"zscorePG")
 pp_ims <- c(paste0("im_log2_",pp_ims),"zscorePP")
 
+#openxlsx::write.xlsx(pg,file=file.path(RAWmisc::PROJ$HOME,"pg.xlsx"))
+#openxlsx::write.xlsx(pp,file=file.path(RAWmisc::PROJ$HOME,"pp.xlsx"))
+#
+# 
+
 sampleSize <- list()
 pg_retval <- pp_retval <- list()
 for(depressed in c("All","Depressed","Not-depressed")) for(k in 1:2){
@@ -352,9 +357,9 @@ unique(data$labels)
 RAWmisc::RecodeDT(data,switch=c(
   "IL_8_pg"="IL-8 (pregnancy)",
   "AXIN1_pg"="AXIN1 (pregnancy)",
-  "MCP_4_pp"="SIRT2 (pregnancy)",
-  "SIRT2_pg"="STAM-BP (pregnancy)",
-  "STAMPB_pg"="MCP-4 (postpartum)"
+  "MCP_4_pp"="MCP-4 (postpartum)",
+  "SIRT2_pg"="SIRT2 (pregnancy)",
+  "STAMPB_pg"="STAM-BP (pregnancy)"
 ), var="labels")
 unique(data$labels)
 l <- unique(data$labels)
@@ -387,7 +392,7 @@ q <- q + scale_x_date("Day/month", labels = scales::date_format("%d/%m"),
                                              "2017-10-01",
                                              "2017-12-01",
                                              "2018-01-01")))
-q <- q + scale_y_continuous("Change in NPX - log2(concentration)")
+q <- q + scale_y_continuous("Change in NPX [log2(concentration)]")
 q <- q + theme_gray(base_size=16)
 q <- q + facet_wrap(~Depressed,ncol=1)
 RAWmisc::saveA4(q,filename=file.path(RAWmisc::PROJ$SHARED_TODAY,"figure_sig.png"))
@@ -425,7 +430,7 @@ q <- q + scale_x_date("Day/month", labels = scales::date_format("%d/%m"),
                                              "2017-10-01",
                                              "2017-12-01",
                                              "2018-01-01")))
-q <- q + scale_y_continuous("Change in NPX - log2(concentration)")
+q <- q + scale_y_continuous("Change in NPX [log2(concentration)]")
 q <- q + theme_gray(base_size=16)
 q <- q + facet_wrap(~Depressed,ncol=1)
 RAWmisc::saveA4(q,filename=file.path(RAWmisc::PROJ$SHARED_TODAY,"figure_all.png"))

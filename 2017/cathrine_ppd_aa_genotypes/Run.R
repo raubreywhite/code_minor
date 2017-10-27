@@ -30,7 +30,7 @@ SCALE <- TRUE
 ############################################################
 ##### SETTING UP VARIABLES THAT WILL BE USED LATER ON IN CLEANING/ANALYSIS
 
-SPNs <- vector("list",length=2)
+SNPs <- vector("list",length=2)
 SNPs[["OXT"]] <- c(
   "rs2740210_CA",
   "rs4813625_CA",
