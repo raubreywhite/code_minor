@@ -6,7 +6,7 @@ RAWmisc::InitialiseProject(
   FINAL = "/analyses/results_final/code_minor/2017/hanna_paper_3/",
   SHARED = "/dropbox/clients/hanna/paper_3/richard/")
 
-dir.create(RAWmisc::PROJ$SHARED_TODAY)
+dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,"scattter_plots"))
 
 library(data.table)
 library(ggplot2)
@@ -28,6 +28,8 @@ nrow(d)
 
 d[!is.na(added_epds_preg),v32_EPDS_D12_9R:=added_epds_preg]
 d[!is.na(added_epds_pp),ppv6_EPDS_D_9R:=added_epds_pp]
+
+cor(ppsday~ppcday,data=d)
 
 #nrow(d)
 #d <- merge(d,pregDep,by=c("CustomDataR"),all.x=T)
@@ -68,6 +70,7 @@ pp_confs <- c(
 
 pg <- d[im_participating_preg==1,c(
   "CustomDataR",
+  "im_sample_day_preg",
   "zscorePG",
   "v32_EPDS_D2_9R",
   "v32_SSRI",
@@ -79,6 +82,7 @@ pg <- d[im_participating_preg==1,c(
 
 pp <- d[im_participating_pp==1,c(
   "CustomDataR",
+  "im_sample_day_pp",
   "zscorePP",
   "ppv6_EPDS_D2_9R",
   "im_sample_year_pp",
@@ -328,7 +332,7 @@ for(k in 1:2){
 toPlot <- rbindlist(toPlot)
 
 # PLOTTING
-toPlot <- toPlot[var %in% c("sin366","cos366") & !im %in% c("zscorePG","zscorePP"),c("depressed","im","var","beta","pbonf"),with=F]
+toPlot <- toPlot[var %in% c("sin366","cos366"),c("depressed","im","var","beta","pbonf"),with=F]
 toPlot[,pbonf:=mean(pbonf,na.rm=T),by=.(depressed,im)]
 
 stack <- dcast.data.table(toPlot,depressed+im+pbonf~var, value.var="beta")
@@ -346,7 +350,7 @@ data <- rbindlist(data)[pbonf<0.05]
 
 data[,date:=as.Date("2016-12-31")+day]
 data[,labels:=""]
-data[IF %in% c("zscorePG",
+data[IF %in% c(
                "im_log2_101_IL_8_pg",
                "im_log2_136_MCP_4_pp",
                "im_log2_172_SIRT2_pg",
@@ -371,7 +375,7 @@ saveA4 <- function(q,filename,landscape=T){
   ggsave(filename,plot=q,width=297,height=210, units="mm")
 }
 
-q <- ggplot(as.data.frame(data), aes(x=date,y=y,group=IF))
+q <- ggplot(as.data.frame(data[!im %in% c("zscorePG","zscorePP")]), aes(x=date,y=y,group=IF))
 q <- q + geom_line(data=data[labels==""])
 q <- q + geom_line(data=data[labels!=""],mapping=aes(colour=labels),lwd=1)
 #q <- q + expand_limits(x=as.Date("2016-08-01"))
@@ -409,7 +413,7 @@ data[stringr::str_detect(IF,"_pp$"),labels:="Not significant PP"]
 data[pbonf<0.05 & stringr::str_detect(IF,"_pg$"),labels:="Significant PG"]
 data[pbonf<0.05 & stringr::str_detect(IF,"_pp$"),labels:="Significant PP"]
 
-q <- ggplot(as.data.frame(data), aes(x=date,y=y,group=IF,colour=labels))
+q <- ggplot(as.data.frame(data[!im %in% c("zscorePG","zscorePP")]), aes(x=date,y=y,group=IF,colour=labels))
 q <- q + geom_line(data=data[labels %in% c("Not significant PG","Not significant PP")],mapping=aes(colour=labels),lwd=0.25,alpha=0.5)
 q <- q + geom_line(data=data[!labels %in% c("Not significant PG","Not significant PP")],mapping=aes(colour=labels))
 #q <- q + expand_limits(x=as.Date("2016-08-01"))
@@ -434,5 +438,42 @@ q <- q + scale_y_continuous("Change in NPX [log2(concentration)]")
 q <- q + theme_gray(base_size=16)
 q <- q + facet_wrap(~Depressed,ncol=1)
 RAWmisc::saveA4(q,filename=file.path(RAWmisc::PROJ$SHARED_TODAY,"figure_all.png"))
+
+
+for(im in unique(data$IF)) for(dep in c("All","Depressed","Not-depressed")){
+  fitted <- data[Depressed==dep & IF==im]
+  if(fitted$pbonf[1]>0.05) next
+  
+  if(fitted$labels[1]=="Significant PG"){
+    pd <- pg[,c(im,"im_sample_day_preg",pg_depressed),with=F]
+    setnames(pd,c("NPX","day","depressed"))
+  } else if(fitted$labels[1]=="Significant PP"){
+    pd <- pp[,c(im,"im_sample_day_pp",pp_depressed),with=F]
+    setnames(pd,c("NPX","day","depressed"))
+  }
+  
+  if(dep=="Depressed"){
+    pd <- pd[depressed==1]
+  } else if(dep=="Not-depressed"){
+    pd <- pd[depressed==0]
+  }
+
+  zeropoint <- c()
+  for(i in 0:8){
+    zeropoint <- c(zeropoint,mean(pd[day %in% (i*40+1):(i*40+40)]$NPX,na.rm=T))
+  }
+  zeropoint <- mean(zeropoint,na.rm=T)
+  zeropoint
+  mean(pd$NPX,na.rm=T)
+  
+  q <- ggplot()
+  q <- q + geom_point(data=pd,mapping=aes(x=day,y=NPX))
+  q <- q + geom_line(data=fitted,mapping=aes(x=day,y=y+zeropoint))
+  q <- q + scale_x_continuous("Day of year")
+  q <- q + labs(title=sprintf("%s - %s",dep,im))
+  RAWmisc::saveA4(q,filename=file.path(RAWmisc::PROJ$SHARED_TODAY,
+                                       "scattter_plots",
+                                       sprintf("%s_%s.png",dep,im)))
+}
 
 
