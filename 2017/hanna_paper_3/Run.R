@@ -1,3 +1,4 @@
+RAWmisc::AllowFileManipulationFromInitialiseProject()
 RAWmisc::InitialiseProject(
   HOME = "/git/code_minor/2017/hanna_paper_3/",
   RAW = "/analyses/data_raw/code_minor/2017/hanna_paper_3/",
@@ -11,12 +12,15 @@ dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,"scattter_plots"))
 library(data.table)
 library(ggplot2)
 
+#asa <- data.table(haven::read_spss(file.path(RAWmisc::PROJ$RAW,"Inflammationsfil Asa arbetsfil.sav")))
+
 depPG <- data.table(readxl::read_excel(file.path(RAWmisc::PROJ$RAW,"Codes and depression status_170928.xlsx"),sheet="Pregnancy"))
 depPP <- data.table(readxl::read_excel(file.path(RAWmisc::PROJ$RAW,"Codes and depression status_170928.xlsx"),sheet="Postpartum"))
 depPG <- depPG[,c("CustomDataR","added_epds_preg")]
 depPP <- depPP[,c("CustomDataR","added_epds_pp")]
 
 d <- data.table(haven::read_spss(file.path(RAWmisc::PROJ$RAW,"alla_large_participation_2017_09_01.sav")))
+#d <- d[v17_sjuk_allergi_01_R ==0]
 
 nrow(d)
 d <- merge(d,depPG,by="CustomDataR",all.x=T)
@@ -375,7 +379,7 @@ saveA4 <- function(q,filename,landscape=T){
   ggsave(filename,plot=q,width=297,height=210, units="mm")
 }
 
-q <- ggplot(as.data.frame(data[!im %in% c("zscorePG","zscorePP")]), aes(x=date,y=y,group=IF))
+q <- ggplot(as.data.frame(data[!IF %in% c("zscorePG","zscorePP")]), aes(x=date,y=y,group=IF))
 q <- q + geom_line(data=data[labels==""])
 q <- q + geom_line(data=data[labels!=""],mapping=aes(colour=labels),lwd=1)
 #q <- q + expand_limits(x=as.Date("2016-08-01"))
@@ -413,7 +417,7 @@ data[stringr::str_detect(IF,"_pp$"),labels:="Not significant PP"]
 data[pbonf<0.05 & stringr::str_detect(IF,"_pg$"),labels:="Significant PG"]
 data[pbonf<0.05 & stringr::str_detect(IF,"_pp$"),labels:="Significant PP"]
 
-q <- ggplot(as.data.frame(data[!im %in% c("zscorePG","zscorePP")]), aes(x=date,y=y,group=IF,colour=labels))
+q <- ggplot(as.data.frame(data[!IF %in% c("zscorePG","zscorePP")]), aes(x=date,y=y,group=IF,colour=labels))
 q <- q + geom_line(data=data[labels %in% c("Not significant PG","Not significant PP")],mapping=aes(colour=labels),lwd=0.25,alpha=0.5)
 q <- q + geom_line(data=data[!labels %in% c("Not significant PG","Not significant PP")],mapping=aes(colour=labels))
 #q <- q + expand_limits(x=as.Date("2016-08-01"))
@@ -468,9 +472,11 @@ for(im in unique(data$IF)) for(dep in c("All","Depressed","Not-depressed")){
   
   q <- ggplot()
   q <- q + geom_point(data=pd,mapping=aes(x=day,y=NPX))
-  q <- q + geom_line(data=fitted,mapping=aes(x=day,y=y+zeropoint))
+  q <- q + stat_smooth(data=pd,mapping=aes(x=day,y=NPX),se=F,col="blue",lwd=1.5)
+  q <- q + geom_line(data=fitted,mapping=aes(x=day,y=y+zeropoint),col="red",lwd=1.5)
   q <- q + scale_x_continuous("Day of year")
   q <- q + labs(title=sprintf("%s - %s",dep,im))
+  q <- q + labs(caption="Red line = Cosine/Sine fit from regression models. Blue line = LOESS fit. ")
   RAWmisc::saveA4(q,filename=file.path(RAWmisc::PROJ$SHARED_TODAY,
                                        "scattter_plots",
                                        sprintf("%s_%s.png",dep,im)))
