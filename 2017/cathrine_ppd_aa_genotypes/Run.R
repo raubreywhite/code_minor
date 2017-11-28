@@ -71,6 +71,17 @@ q <- q + scale_x_continuous("log(1+value)")
 ggsave("/dropbox/clients/cathrine/ppd_aa_genotypes/results_richard/histogram.png",
        plot = q, width = 297, height = 210, units = "mm")
 
+# HEATMAP
+q <- GGally::ggcorr(cbind(
+  d[,SNPs[["OXTR"]],with=F],
+  d[,SNPs[["OXT"]],with=F]), 
+  hjust = 0.85, label = TRUE) + expand_limits(x=-2)
+ggsave("/dropbox/clients/cathrine/ppd_aa_genotypes/results_richard/heatmap.png",
+       plot = q, width = 297/1.25, height = 210, units = "mm")
+
+# END HEATMAP
+
+
 xtabs(~d$ASQSF_total_anxiety)
 hist(d$ASQSF_total_anxiety)
 xtabs(~d$rs237902_CA)
