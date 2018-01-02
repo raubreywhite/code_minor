@@ -60,17 +60,15 @@ plot(d$im_102_VEGFA_pp~d$SIN_366_pp)
 sd(d$im_103_BDNF_pp,na.rm=T)
 sd(d$im_102_VEGFA_pp,na.rm=T)
 
+
 pg_depressed <- c("v32_EPDS_D12_9R")
 pp_depressed <- c("ppv6_EPDS_D_9R")
 
-pg_confs <- c("v32_EPDS_D2_9R",
-              "v32_SSRI",
+pg_confs <- c("v32_SSRI",
               "im_fasting_sample",
               "im_sample_year_preg")
 
-pp_confs <- c(
-  "ppv6_EPDS_D2_9R",
-  "im_sample_year_pp")
+pp_confs <- c("im_sample_year_pp")
 
 pg <- d[im_participating_preg==1,c(
   "CustomDataR",
@@ -94,6 +92,12 @@ pp <- d[im_participating_pp==1,c(
   "COS_366_pp",
   pp_depressed),with=F
 ]
+
+xtabs(~pg$v32_EPDS_D12_9R, addNA=TRUE)
+xtabs(~pg$v32_EPDS_D2_9R, addNA=TRUE)
+
+xtabs(~pg$v32_EPDS_D12_9R, addNA=TRUE)
+xtabs(~pg$v32_EPDS_D2_9R, addNA=TRUE)
 
 ifs <- readRDS(file=file.path("/analyses/data_clean/code_minor/2017/inflammation_data","inflammation_markers_log2_with_lod_sqrt2.RDS"))
 
@@ -165,6 +169,8 @@ for(depressed in c("All","Depressed","Not-depressed")) for(k in 1:2){
     data <- data[get(dep)==1]
   } else if(depressed=="Not-depressed"){
     data <- data[get(dep)==0]
+  } else {
+    confs <- c(confs,dep)
   }
   
   retval <- vector("list",length(ims))
@@ -359,7 +365,8 @@ data[IF %in% c(
                "im_log2_136_MCP_4_pp",
                "im_log2_172_SIRT2_pg",
                "im_log2_118_AXIN1_pg",
-               "im_log2_192_STAMPB_pg"),labels:=IF]
+               "im_log2_192_STAMPB_pg",
+               "im_log2_183_MCP_2_pg"),labels:=IF]
 data[,labels:=stringr::str_replace(labels,"im_log2_[0-9][0-9][0-9]_","")]
 unique(data$labels)
 RAWmisc::RecodeDT(data,switch=c(
@@ -380,7 +387,7 @@ saveA4 <- function(q,filename,landscape=T){
 }
 
 q <- ggplot(as.data.frame(data[!IF %in% c("zscorePG","zscorePP")]), aes(x=date,y=y,group=IF))
-q <- q + geom_line(data=data[labels==""])
+q <- q + geom_line(data=data[labels=="" & !IF %in% c("zscorePG","zscorePP")])
 q <- q + geom_line(data=data[labels!=""],mapping=aes(colour=labels),lwd=1)
 #q <- q + expand_limits(x=as.Date("2016-08-01"))
 q <- q + scale_colour_manual("",values=c("#e41a1c", "#377eb8", "#4daf4a", "#ff7f00", "#f781bf"))
@@ -418,8 +425,8 @@ data[pbonf<0.05 & stringr::str_detect(IF,"_pg$"),labels:="Significant PG"]
 data[pbonf<0.05 & stringr::str_detect(IF,"_pp$"),labels:="Significant PP"]
 
 q <- ggplot(as.data.frame(data[!IF %in% c("zscorePG","zscorePP")]), aes(x=date,y=y,group=IF,colour=labels))
-q <- q + geom_line(data=data[labels %in% c("Not significant PG","Not significant PP")],mapping=aes(colour=labels),lwd=0.25,alpha=0.5)
-q <- q + geom_line(data=data[!labels %in% c("Not significant PG","Not significant PP")],mapping=aes(colour=labels))
+q <- q + geom_line(data=data[labels %in% c("Not significant PG","Not significant PP") & !IF %in% c("zscorePG","zscorePP")],mapping=aes(colour=labels),lwd=0.25,alpha=0.5)
+q <- q + geom_line(data=data[!labels %in% c("Not significant PG","Not significant PP") & !IF %in% c("zscorePG","zscorePP")],mapping=aes(colour=labels))
 #q <- q + expand_limits(x=as.Date("2016-08-01"))
 q <- q + scale_colour_manual("",values=c("black", "#377eb8", "#4daf4a", "#ff7f00", "#f781bf"))
 #q <- q + scale_colour_brewer("",palette="Set2")

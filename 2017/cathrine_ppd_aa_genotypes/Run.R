@@ -7,6 +7,26 @@ if(!"https://raubreywhite.github.io/drat/" %in% options("repos")$repos){
 library(data.table)
 library(ggplot2)
 library(SKAT)
+library(GGally)
+library(mice)
+
+Lichtrubin <- function(p){
+  ## pools the p-values of a one-sided test according to the Licht-Rubin method
+  ## this method pools p-values in the z-score scale, and then transforms back 
+  ## the result to the 0-1 scale
+  ## Licht C, Rubin DB (2011) unpublished
+  p[p<0.00001] <- 0.00001
+  p[p>0.99999] <- 0.99999
+  z <- qnorm(p)  # transform to z-scale
+  num <- mean(z)
+  B <- 1 + (1 + 1 / length(z))*var(z)
+  den <- sqrt(B)
+  pnorm( num / den) # average and transform back
+}
+
+a <- data.table(p=c(rep(0.1,3),rep(0.2,5)),grp=c(rep(1,4),rep(2,4)))
+a[, lapply(.SD, Lichtrubin), by=.(grp)]
+Lichtrubin(c(0.1,0.1,0.1,0.2))
 
 ############################################################
 ##### SETTING UP VARIABLES THAT WILL BE USED LATER ON IN CLEANING/ANALYSIS
@@ -60,6 +80,7 @@ d <- data.table(haven::read_spss("/analyses/data_raw/code_minor/2017/cathrine_pp
 nrow(d)
 d <- d[filter_OXT_OXTR_CA==1]
 nrow(d)
+xtabs(~d[[SENSITIVITY]])
 
 outcomeData <- d[,OUTCOMES,with=F]
 outcomeData[,id:=1:.N]
@@ -119,5 +140,45 @@ retval <- rbindlist(retval)
 retval
 openxlsx::write.xlsx(retval, file="/dropbox/clients/cathrine/ppd_aa_genotypes/results_richard/SKAT.xlsx", rowNames=TRUE, colNames=TRUE)
 
+# imputed
+
+retval <- list(100)
+index <- 1
+
+for(y in OUTCOMES) for(z in names(SNPs)) for(strata in c("All","Depressed","Not-depressed")){
+  toImpute <- d[,c(y,SENSITIVITY,CONFOUNDERS,SNPs[[z]]),with=F]
+  toImpute[[y]] <- log(1+toImpute[[y]])
+  imputed <- mice(toImpute, seed=4)
+  for(m in 1:5){
+    y.c <- log(1+complete(imputed,m)[[y]])
+    X <- as.matrix(complete(imputed,m)[,CONFOUNDERS])
+    Z <- as.matrix(complete(imputed,m)[,SNPs[[z]]])
+    
+    if(strata=="Depressed"){
+      y.c <- y.c[complete(imputed,m)[[SENSITIVITY]]==1]
+      X <- X[complete(imputed,m)[[SENSITIVITY]]==1,]
+      Z <- Z[complete(imputed,m)[[SENSITIVITY]]==1,]
+    } else if(strata=="Not-depressed"){
+      y.c <- y.c[complete(imputed,m)[[SENSITIVITY]]==0]
+      X <- X[complete(imputed,m)[[SENSITIVITY]]==0,]
+      Z <- Z[complete(imputed,m)[[SENSITIVITY]]==0,]
+    }
+    
+    objCrude <-SKAT_Null_Model(y.c ~ 1, out_type="C")
+    objAdjusted <-SKAT_Null_Model(y.c ~ X, out_type="C")
+    retval[[index]] <- data.frame(
+      strata=strata,
+      crude_pval_weightedrare=SKAT(Z, objCrude)$p.value,
+      crude_pval_commonrare=SKAT_CommonRare(Z, objCrude)$p.value,
+      adjusted_pval_weightedrare=SKAT(Z, objAdjusted)$p.value,
+      adjusted_pval_commonrare=SKAT_CommonRare(Z, objAdjusted)$p.value,
+      logged_outcome=y,
+      gene=z)
+    index <- index + 1
+  }
+}
+retval <- rbindlist(retval)
+retvalx <- retval[, lapply(.SD, Lichtrubin), by=.(strata, logged_outcome, gene)]
+openxlsx::write.xlsx(retvalx, file="/dropbox/clients/cathrine/ppd_aa_genotypes/results_richard/SKAT_imputed.xlsx", rowNames=TRUE, colNames=TRUE)
 
 
