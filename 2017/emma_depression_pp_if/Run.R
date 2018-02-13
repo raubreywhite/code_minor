@@ -164,7 +164,7 @@ xtabs(~d$outcomeAvsB)
 ############MAYBE FIX THIS???
 for(i in 1:10) warning("MAYBE FIX THIS")
 for(i in 1:10) warning("MAYBE FIX THIS")
-d$outcomeMain <- d$outcomeAvsB
+#d$outcomeMain <- d$outcomeAvsB
 
 # Fixing mini confounders
 d$mini <- 0

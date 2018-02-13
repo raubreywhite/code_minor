@@ -67,10 +67,6 @@ dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,"figures"))
 nrow(d)
 d <- d[Include_new_CA==1]
 nrow(d)
-d <- d[High_risk_somatic_disease_CA==0]
-nrow(d)
-
-d[,Base_prog_CA:=abs(Base_prog_CA-1)]
 
 OUTCOMES_BINARY <- c(
   "Base_prog_CA",
@@ -143,7 +139,7 @@ SummarizeContinuous <- function(var){
     median=median(x,na.rm=T),
     p25=quantile(x,probs=0.25,na.rm=T),
     p75=quantile(x,probs=0.75,na.rm=T)
-    ),by=label]
+  ),by=label]
   x[,median_iqr:=sprintf("%s (%s-%s)",
                          RAWmisc::Format(median),
                          RAWmisc::Format(p25),
@@ -236,25 +232,29 @@ ddist0 <- datadist(d[,c(
   OUTCOMES_BINARY,
   OUTCOMES_CONTINUOUS,
   EXPOSURE,
+  EFFECT_MODIFIER,
   CONFOUNDERS_BINARY,
   CONFOUNDERS_CATEGORY
 ),with=F])
 ddist0$limits[[EXPOSURE]][2] <- p25 ##### SETTING REFERENCE VALUE FOR NEUROTICISM
+ddist0$limits[[EFFECT_MODIFIER]][2] <- 0 ##### SETTING REFERENCE VALUE FOR NEUROTICISM
 
 ddist1 <- datadist(d[,c(
   OUTCOMES_BINARY,
   OUTCOMES_CONTINUOUS,
   EXPOSURE,
+  EFFECT_MODIFIER,
   CONFOUNDERS_BINARY,
   CONFOUNDERS_CATEGORY
 ),with=F])
 ddist1$limits[[EXPOSURE]][2] <- p25 ##### SETTING REFERENCE VALUE FOR NEUROTICISM
+ddist1$limits[[EFFECT_MODIFIER]][2] <- 1 ##### SETTING REFERENCE VALUE FOR NEUROTICISM
 
 ##### RUNNING THE MODEL
 stack <- data.frame(
   outcome=c(OUTCOMES_BINARY,OUTCOMES_CONTINUOUS),
   model=c(rep("logistic",length(OUTCOMES_BINARY)),rep("quasipoisson",length(OUTCOMES_CONTINUOUS)))
-  )
+)
 
 res <- vector("list",length=nrow(stack))
 for(i in 1:nrow(stack)){
@@ -279,31 +279,48 @@ for(i in 1:nrow(stack)){
   formulas <- list()
   
   formulas[["formula1crude_linear"]] <- sprintf("%s ~ %s",
-                                  OUTCOME,
-                                  EXPOSURE)
+                                                OUTCOME,
+                                                EXPOSURE)
   formulas[["formula1crude_3"]] <- sprintf("%s ~ rcs(%s,%s)",
-                             OUTCOME,
-                             EXPOSURE,
-                             3)
+                                           OUTCOME,
+                                           EXPOSURE,
+                                           3)
   formulas[["formula1crude_4"]] <- sprintf("%s ~ rcs(%s,%s)",
-                             OUTCOME,
-                             EXPOSURE,
-                             4)
-  formulas[["formula0adj"]] <- sprintf("%s ~ %s + %s",
-                         OUTCOME,
-                         CONFOUNDERS_BINARY,
-                         CONFOUNDERS_CATEGORY)
-  formulas[["formula1adj"]] <- sprintf("%s ~ %s + %s + %s",
+                                           OUTCOME,
+                                           EXPOSURE,
+                                           4)
+  formulas[["formula0adj"]] <- sprintf("%s ~ %s + %s + %s",
+                                       OUTCOME,
+                                       EFFECT_MODIFIER,
+                                       CONFOUNDERS_BINARY,
+                                       CONFOUNDERS_CATEGORY)
+  formulas[["formula1adj"]] <- sprintf("%s ~ %s + %s + %s + %s",
                                        OUTCOME,
                                        EXPOSURE_AFTER_AIC,
+                                       EFFECT_MODIFIER,
+                                       CONFOUNDERS_BINARY,
+                                       CONFOUNDERS_CATEGORY)
+  formulas[["formula1int"]] <- sprintf("%s ~ %s*%s + %s + %s",
+                                       OUTCOME,
+                                       EXPOSURE_AFTER_AIC,
+                                       EFFECT_MODIFIER,
                                        CONFOUNDERS_BINARY,
                                        CONFOUNDERS_CATEGORY)
   
   formulas[["formula0adj_CRUDE"]] <- sprintf("%s ~ 1",
                                              OUTCOME)
   formulas[["formula1adj_CRUDE"]] <- sprintf("%s ~ %s",
-                                       OUTCOME,
-                                       EXPOSURE_AFTER_AIC)
+                                             OUTCOME,
+                                             EXPOSURE_AFTER_AIC)
+  
+  formulas[["formula0int_CRUDE"]] <- sprintf("%s ~ %s + %s",
+                                             OUTCOME,
+                                             EXPOSURE_AFTER_AIC,
+                                             EFFECT_MODIFIER)
+  formulas[["formula1int_CRUDE"]] <- sprintf("%s ~ %s*%s",
+                                             OUTCOME,
+                                             EXPOSURE_AFTER_AIC,
+                                             EFFECT_MODIFIER)
   
   modelResults <- list()
   for(f in names(formulas)){
@@ -315,12 +332,10 @@ for(i in 1:nrow(stack)){
     modelResults[[f]] <- Glm(as.formula(formulas[[f]]),
                              x=TRUE, y=TRUE, data=d, family=famUse)
   }
-
+  
   #### GETTING OUT THE ESTIMATED LOG-ODDS RATIOS AND 95% CIS FOR DIFFERENT POINTS CRUDE
   fit <- Glm(as.formula(formulas[["formula1adj_CRUDE"]]),
              x=TRUE, y=TRUE, data=d, family=fam)
-  toCalcPVAL <- as.data.frame(summary(fit))
-  C_directPval <- 2*(1-pnorm(abs(toCalcPVAL$Effect[1]/toCalcPVAL$`S.E.`[1])))
   px <- Predict(fit,
                 Neuroticism_CA=sort(c(p25,p25_plus_1,p75,seq(250,350,10))),
                 ref.zero=T)
@@ -333,16 +348,48 @@ for(i in 1:nrow(stack)){
   
   C_u_together_1 <- px[Neuroticism_CA==p25_plus_1]$upper
   C_u_together_p75 <- px[Neuroticism_CA==p75]$upper
- 
+  
+  options(datadist='ddist0')
+  fit <- Glm(as.formula(formulas[["formula1int_CRUDE"]]),
+             x=TRUE, y=TRUE, data=d, family=fam)
+  p0 <- Predict(fit,
+                Neuroticism_CA=sort(c(p25,p25_plus_1,p75,seq(250,350,10))),
+                ref.zero=T)
+  p0 <- data.table(data.frame(p0))
+  
+  C_est_lowrisk_1 <- p0[Neuroticism_CA==p25_plus_1]$yhat
+  C_est_lowrisk_p75 <- p0[Neuroticism_CA==p75]$yhat
+  
+  C_l_lowrisk_1 <- p0[Neuroticism_CA==p25_plus_1]$lower
+  C_l_lowrisk_p75 <- p0[Neuroticism_CA==p75]$lower
+  
+  C_u_lowrisk_1 <- p0[Neuroticism_CA==p25_plus_1]$upper
+  C_u_lowrisk_p75 <- p0[Neuroticism_CA==p75]$upper
+  
+  options(datadist='ddist1')
+  fit <- Glm(as.formula(formulas[["formula1int_CRUDE"]]),
+             x=TRUE, y=TRUE, data=d, family=fam)
+  p1 <- Predict(fit,
+                Neuroticism_CA=sort(c(p25,p25_plus_1,p75,seq(250,350,10))),
+                ref.zero=T)
+  p1 <- data.table(data.frame(p1))
+  
+  C_est_highrisk_1 <- p1[Neuroticism_CA==p25_plus_1]$yhat
+  C_est_highrisk_p75 <- p1[Neuroticism_CA==p75]$yhat
+  
+  C_l_highrisk_1 <- p1[Neuroticism_CA==p25_plus_1]$lower
+  C_l_highrisk_p75 <- p1[Neuroticism_CA==p75]$lower
+  
+  C_u_highrisk_1 <- p1[Neuroticism_CA==p25_plus_1]$upper
+  C_u_highrisk_p75 <- p1[Neuroticism_CA==p75]$upper
+  
   #### GETTING OUT THE ESTIMATED LOG-ODDS RATIOS AND 95% CIS FOR DIFFERENT POINTS ADJUSTED
   fit <- Glm(as.formula(formulas[["formula1adj"]]),
              x=TRUE, y=TRUE, data=d, family=fam)
-  toCalcPVAL <- as.data.frame(summary(fit))
-  directPval <- 2*(1-pnorm(abs(toCalcPVAL$Effect[1]/toCalcPVAL$`S.E.`[1])))
   px <- Predict(fit,
                 Neuroticism_CA=sort(c(p25,p25_plus_1,p75,seq(250,350,10))),
                 ref.zero=T)
-  p <- px <- data.table(data.frame(px))
+  px <- data.table(data.frame(px))
   est_together_1 <- px[Neuroticism_CA==p25_plus_1]$yhat
   est_together_p75 <- px[Neuroticism_CA==p75]$yhat
   
@@ -352,6 +399,42 @@ for(i in 1:nrow(stack)){
   u_together_1 <- px[Neuroticism_CA==p25_plus_1]$upper
   u_together_p75 <- px[Neuroticism_CA==p75]$upper
   
+  options(datadist='ddist0')
+  fit <- Glm(as.formula(formulas[["formula1int"]]),
+             x=TRUE, y=TRUE, data=d, family=fam)
+  p0 <- Predict(fit,
+                Neuroticism_CA=sort(c(p25,p25_plus_1,p75,seq(250,350,10))),
+                ref.zero=T)
+  p0 <- data.table(data.frame(p0))
+  
+  est_lowrisk_1 <- p0[Neuroticism_CA==p25_plus_1]$yhat
+  est_lowrisk_p75 <- p0[Neuroticism_CA==p75]$yhat
+  
+  l_lowrisk_1 <- p0[Neuroticism_CA==p25_plus_1]$lower
+  l_lowrisk_p75 <- p0[Neuroticism_CA==p75]$lower
+  
+  u_lowrisk_1 <- p0[Neuroticism_CA==p25_plus_1]$upper
+  u_lowrisk_p75 <- p0[Neuroticism_CA==p75]$upper
+  
+  options(datadist='ddist1')
+  fit <- Glm(as.formula(formulas[["formula1int"]]),
+             x=TRUE, y=TRUE, data=d, family=fam)
+  p1 <- Predict(fit,
+                Neuroticism_CA=sort(c(p25,p25_plus_1,p75,seq(250,350,10))),
+                ref.zero=T)
+  p1 <- data.table(data.frame(p1))
+  
+  est_highrisk_1 <- p1[Neuroticism_CA==p25_plus_1]$yhat
+  est_highrisk_p75 <- p1[Neuroticism_CA==p75]$yhat
+  
+  l_highrisk_1 <- p1[Neuroticism_CA==p25_plus_1]$lower
+  l_highrisk_p75 <- p1[Neuroticism_CA==p75]$lower
+  
+  u_highrisk_1 <- p1[Neuroticism_CA==p25_plus_1]$upper
+  u_highrisk_p75 <- p1[Neuroticism_CA==p75]$upper
+  
+  options(datadist='ddist0')
+  p <- rbindlist(list(p0,p1))
   # converting from log-odds ratio to odds ratio
   p$yhat <- exp(p$yhat)
   p$lower <- exp(p$lower)
@@ -361,7 +444,10 @@ for(i in 1:nrow(stack)){
   q <- ggplot(p,aes(x=Neuroticism_CA,
                     y=yhat,
                     ymax=upper,
-                    ymin=lower))
+                    ymin=lower,
+                    colour=factor(High_risk_somatic_disease_CA),
+                    fill=factor(High_risk_somatic_disease_CA),
+                    group=factor(High_risk_somatic_disease_CA)))
   q <- q + geom_ribbon(alpha=0.2,colour=NA)
   q <- q + geom_line()
   q <- q + geom_vline(xintercept=258,col="red")
@@ -390,24 +476,64 @@ for(i in 1:nrow(stack)){
                                 RAWmisc::Format(exp(u_together_1))
     ),
     est_together_p75_unit=sprintf("%s (%s, %s)",
-                                RAWmisc::Format(exp(est_together_p75)),
-                                RAWmisc::Format(exp(l_together_p75)),
-                                RAWmisc::Format(exp(u_together_p75))
+                                  RAWmisc::Format(exp(est_together_p75)),
+                                  RAWmisc::Format(exp(l_together_p75)),
+                                  RAWmisc::Format(exp(u_together_p75))
     ),
-    pval_adj=directPval,
-    lrtest_pval_adj=rms::lrtest(modelResults[["formula0adj"]],modelResults[["formula1adj"]])$stats[["P"]],
+    est_lowrisk_1_unit=sprintf("%s (%s, %s)",
+                               RAWmisc::Format(exp(est_lowrisk_1)),
+                               RAWmisc::Format(exp(l_lowrisk_1)),
+                               RAWmisc::Format(exp(u_lowrisk_1))
+    ),
+    est_lowrisk_p75_unit=sprintf("%s (%s, %s)",
+                                 RAWmisc::Format(exp(est_lowrisk_p75)),
+                                 RAWmisc::Format(exp(l_lowrisk_p75)),
+                                 RAWmisc::Format(exp(u_lowrisk_p75))
+    ),est_highrisk_1_unit=sprintf("%s (%s, %s)",
+                                  RAWmisc::Format(exp(est_highrisk_1)),
+                                  RAWmisc::Format(exp(l_highrisk_1)),
+                                  RAWmisc::Format(exp(u_highrisk_1))
+    ),
+    est_highrisk_p75_unit=sprintf("%s (%s, %s)",
+                                  RAWmisc::Format(exp(est_highrisk_p75)),
+                                  RAWmisc::Format(exp(l_highrisk_p75)),
+                                  RAWmisc::Format(exp(u_highrisk_p75))
+    ),
+    pval_adj=rms::lrtest(modelResults[["formula0adj"]],modelResults[["formula1adj"]])$stats[["P"]],
+    pval_interaction=rms::lrtest(modelResults[["formula1adj"]],modelResults[["formula1int"]])$stats[["P"]],
+    
     C_est_together_1_unit=sprintf("%s (%s, %s)",
-                                RAWmisc::Format(exp(C_est_together_1)),
-                                RAWmisc::Format(exp(C_l_together_1)),
-                                RAWmisc::Format(exp(C_u_together_1))
+                                  RAWmisc::Format(exp(C_est_together_1)),
+                                  RAWmisc::Format(exp(C_l_together_1)),
+                                  RAWmisc::Format(exp(C_u_together_1))
     ),
     C_est_together_p75_unit=sprintf("%s (%s, %s)",
-                                  RAWmisc::Format(exp(C_est_together_p75)),
-                                  RAWmisc::Format(exp(C_l_together_p75)),
-                                  RAWmisc::Format(exp(C_u_together_p75))
+                                    RAWmisc::Format(exp(C_est_together_p75)),
+                                    RAWmisc::Format(exp(C_l_together_p75)),
+                                    RAWmisc::Format(exp(C_u_together_p75))
     ),
-    C_pval_adj=C_directPval,
-    C_lrtest_pval_adj=rms::lrtest(modelResults[["formula0adj_CRUDE"]],modelResults[["formula1adj_CRUDE"]])$stats[["P"]]
+    C_est_lowrisk_1_unit=sprintf("%s (%s, %s)",
+                                 RAWmisc::Format(exp(C_est_lowrisk_1)),
+                                 RAWmisc::Format(exp(C_l_lowrisk_1)),
+                                 RAWmisc::Format(exp(C_u_lowrisk_1))
+    ),
+    C_est_lowrisk_p75_unit=sprintf("%s (%s, %s)",
+                                   RAWmisc::Format(exp(C_est_lowrisk_p75)),
+                                   RAWmisc::Format(exp(C_l_lowrisk_p75)),
+                                   RAWmisc::Format(exp(C_u_lowrisk_p75))
+    ),
+    C_est_highrisk_1_unit=sprintf("%s (%s, %s)",
+                                  RAWmisc::Format(exp(C_est_highrisk_1)),
+                                  RAWmisc::Format(exp(C_l_highrisk_1)),
+                                  RAWmisc::Format(exp(C_u_highrisk_1))
+    ),
+    C_est_highrisk_p75_unit=sprintf("%s (%s, %s)",
+                                    RAWmisc::Format(exp(C_est_highrisk_p75)),
+                                    RAWmisc::Format(exp(C_l_highrisk_p75)),
+                                    RAWmisc::Format(exp(C_u_highrisk_p75))
+    ),
+    C_pval_adj=rms::lrtest(modelResults[["formula0adj_CRUDE"]],modelResults[["formula1adj_CRUDE"]])$stats[["P"]],
+    C_pval_interaction=rms::lrtest(modelResults[["formula0int_CRUDE"]],modelResults[["formula1int_CRUDE"]])$stats[["P"]]
   )
   
   res[[i]] <- retval
@@ -417,33 +543,34 @@ for(i in 1:nrow(stack)){
 res <- rbindlist(res)
 
 res[,C_pval_adj:=RAWmisc::Format(C_pval_adj,digits=3)]
+res[,C_pval_interaction:=RAWmisc::Format(C_pval_interaction,digits=3)]
 res[,sig:=""]
 res[C_pval_adj<="0.050",sig:="*"]
 res[C_pval_adj=="0.000",C_pval_adj:="<0.001"]
 res[,C_pval_adj:=sprintf("%s%s",C_pval_adj,sig)]
 res[,sig:=NULL]
 
-res[,C_lrtest_pval_adj:=RAWmisc::Format(C_lrtest_pval_adj,digits=3)]
 res[,sig:=""]
-res[C_lrtest_pval_adj<="0.050",sig:="*"]
-res[C_lrtest_pval_adj=="0.000",C_lrtest_pval_adj:="<0.001"]
-res[,C_lrtest_pval_adj:=sprintf("%s%s",C_lrtest_pval_adj,sig)]
+res[C_pval_interaction<="0.050",sig:="*"]
+res[C_pval_interaction=="0.000",C_pval_interaction:="<0.001"]
+res[,C_pval_interaction:=sprintf("%s%s",C_pval_interaction,sig)]
 res[,sig:=NULL]
 
+
 res[,pval_adj:=RAWmisc::Format(pval_adj,digits=3)]
+res[,pval_interaction:=RAWmisc::Format(pval_interaction,digits=3)]
+
 res[,sig:=""]
 res[pval_adj<="0.050",sig:="*"]
 res[pval_adj=="0.000",pval_adj:="<0.001"]
 res[,pval_adj:=sprintf("%s%s",pval_adj,sig)]
 res[,sig:=NULL]
 
-res[,lrtest_pval_adj:=RAWmisc::Format(lrtest_pval_adj,digits=3)]
 res[,sig:=""]
-res[lrtest_pval_adj<="0.050",sig:="*"]
-res[lrtest_pval_adj=="0.000",lrtest_pval_adj:="<0.001"]
-res[,lrtest_pval_adj:=sprintf("%s%s",lrtest_pval_adj,sig)]
+res[pval_interaction<="0.050",sig:="*"]
+res[pval_interaction=="0.000",pval_interaction:="<0.001"]
+res[,pval_interaction:=sprintf("%s%s",pval_interaction,sig)]
 res[,sig:=NULL]
-
 res
 
 table2 <- res[,c(
@@ -461,21 +588,66 @@ openxlsx::write.xlsx(table2, file=file.path(
 ############
 
 table3 <- res[,c(
-  "form","outcome","est_together_1_unit","est_together_p75_unit","pval_adj","lrtest_pval_adj"
+  "outcome","est_together_1_unit","est_together_p75_unit","pval_adj"
 )]
 table3[outcome %in% c("Midwife_ObGyn_phone_visits_CA","Hospital_admission_CA"),est_together_1_unit:="-"]
-table3[outcome %in% c("Midwife_ObGyn_phone_visits_CA","Hospital_admission_CA"),pval_adj:="-"]
 
 openxlsx::write.xlsx(table3, file=file.path(
   RAWmisc::PROJ$SHARED_TODAY,"tables","adj_table3_main_effect.xlsx"
 ))
 
 table3 <- res[,c(
-  "form","outcome","C_est_together_1_unit","C_est_together_p75_unit","C_pval_adj","C_lrtest_pval_adj"
+  "outcome","C_est_together_1_unit","C_est_together_p75_unit","C_pval_adj"
 )]
 table3[outcome %in% c("Midwife_ObGyn_phone_visits_CA","Hospital_admission_CA"),C_est_together_1_unit:="-"]
-table3[outcome %in% c("Midwife_ObGyn_phone_visits_CA","Hospital_admission_CA"),C_pval_adj:="-"]
 
 openxlsx::write.xlsx(table3, file=file.path(
   RAWmisc::PROJ$SHARED_TODAY,"tables","crude_table3_main_effect.xlsx"
 ))
+
+############
+
+table4 <- res[,c(
+  "outcome",
+  "est_lowrisk_1_unit",
+  "est_highrisk_1_unit",
+  "est_lowrisk_p75_unit",
+  "est_highrisk_p75_unit",
+  "pval_interaction"
+)]
+#table4[!stringr::str_detect(pval_interaction,"\\*"),est_lowrisk_1_unit:="-"]
+#table4[!stringr::str_detect(pval_interaction,"\\*"),est_highrisk_1_unit:="-"]
+#table4[!stringr::str_detect(pval_interaction,"\\*"),est_lowrisk_p75_unit:="-"]
+#table4[!stringr::str_detect(pval_interaction,"\\*"),est_highrisk_p75_unit:="-"]
+
+table4[outcome %in% c("Midwife_ObGyn_phone_visits_CA","Hospital_admission_CA"),est_lowrisk_1_unit:="-"]
+table4[outcome %in% c("Midwife_ObGyn_phone_visits_CA","Hospital_admission_CA"),est_highrisk_1_unit:="-"]
+
+openxlsx::write.xlsx(table4, file=file.path(
+  RAWmisc::PROJ$SHARED_TODAY,"tables","adj_table4_stratified_effect.xlsx"
+))
+
+table4 <- res[,c(
+  "outcome",
+  "C_est_lowrisk_1_unit",
+  "C_est_highrisk_1_unit",
+  "C_est_lowrisk_p75_unit",
+  "C_est_highrisk_p75_unit",
+  "C_pval_interaction"
+)]
+#table4[!stringr::str_detect(C_pval_interaction,"\\*"),C_est_lowrisk_1_unit:="-"]
+#table4[!stringr::str_detect(C_pval_interaction,"\\*"),C_est_highrisk_1_unit:="-"]
+#table4[!stringr::str_detect(C_pval_interaction,"\\*"),C_est_lowrisk_p75_unit:="-"]
+#table4[!stringr::str_detect(C_pval_interaction,"\\*"),C_est_highrisk_p75_unit:="-"]
+
+table4[outcome %in% c("Midwife_ObGyn_phone_visits_CA","Hospital_admission_CA"),C_est_lowrisk_1_unit:="-"]
+table4[outcome %in% c("Midwife_ObGyn_phone_visits_CA","Hospital_admission_CA"),C_est_highrisk_1_unit:="-"]
+
+openxlsx::write.xlsx(table4, file=file.path(
+  RAWmisc::PROJ$SHARED_TODAY,"tables","crude_table4_stratified_effect.xlsx"
+))
+
+
+
+
+
