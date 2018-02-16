@@ -62,7 +62,7 @@ results <- rbindlist(results)
 results[,change:=(coefAdjusted-coefBase)/coefBase]
 results[,changeMoreThan10:=0]
 results[abs(change)>0.1,changeMoreThan10:=1]
-confounders <- results[pvalBase<0.05,.(averageChange=mean(abs(change)),changeMoreThan10perc=mean(changeMoreThan10)),by=confounder]
+confounders <- results[pvalBase<0.05,.(numSigIFs=.N,averageChange=mean(abs(change)),changeMoreThan10perc=mean(changeMoreThan10)),by=confounder]
 setorder(confounders,-changeMoreThan10perc)
 openxlsx::write.xlsx(confounders, file.path(RAWmisc::PROJ$SHARED_TODAY,"secondary_aim","confounders.xlsx"))
 
@@ -71,7 +71,8 @@ confoundersDecided <- as.character(confounders[changeMoreThan10perc>=0.1]$confou
 fileConn<-file(file.path(RAWmisc::PROJ$SHARED_TODAY,"secondary_aim","details.txt"))
 writeLines(c(
   sprintf("\n\n**POTENTIAL_CONFOUNDERS**\n%s",paste0(confoundersPossible,collapse="\n")),
-  sprintf("\n\n**CONFOUNDERS_DECIDED**\n%s",paste0(confoundersDecided,collapse="\n"))
+  sprintf("\n\n**CONFOUNDERS_DECIDED**\n%s",paste0(confoundersDecided,collapse="\n")),
+  sprintf("\n\n**IFs**\n%s",paste0(IFs,collapse="\n"))
 ), fileConn)
 close(fileConn)
 
