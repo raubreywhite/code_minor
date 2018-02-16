@@ -109,7 +109,7 @@ for(OUTCOME in c("AvsBC","AvsB")){
   res <- rbindlist(res)
   
   openxlsx::write.xlsx(res, file=file.path(
-    RAWmisc::PROJ$SHARED_TODAY,OUTCOME,"primary_aim","table_1.xlsx"
+    RAWmisc::PROJ$SHARED_TODAY,"primary_aim",OUTCOME,"table_1.xlsx"
   ))
   
   
