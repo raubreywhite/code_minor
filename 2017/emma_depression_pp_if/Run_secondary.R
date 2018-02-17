@@ -1,15 +1,26 @@
-RAWmisc::UseRClone()
-RAWmisc::AllowFileManipulationFromInitialiseProject()
-RAWmisc::InitialiseProject(
-  HOME = "/git/code_minor/2017/emma_depression_pp_if/",
-  RAW = "/analyses/data_raw/code_minor/2017/emma_depression_pp_if/",
-  CLEAN = "/analyses/data_clean/code_minor/2017/emma_depression_pp_if",
-  BAKED = "/analyses/results_baked/code_minor/2017/emma_depression_pp_if/",
-  FINAL = "/analyses/results_final/code_minor/2017/emma_depression_pp_if/",
-  SHARED = "/dropbox/results_shared/code_minor/2017/emma_depression_pp_if/",
-  RCLONE_RAW = "data:/analyses/data_raw/code_minor/2017/emma_depression_pp_if/",
-  RCLONE_SHARED = "data:/analyses/results_shared/code_minor/2017/emma_depression_pp_if/"
-)
+if(.Platform$OS.type=="unix"){
+  RAWmisc::UseRClone()
+  RAWmisc::AllowFileManipulationFromInitialiseProject()
+  
+  if(length(list.files("/dropbox"))>0){
+    SHARED <- "/dropbox/analyses/results_shared/code_minor/2017/emma_depression_pp_if/"
+    RCLONE_SHARED <- NULL
+  } else {
+    SHARED <- "/tmp/results_shared/code_minor/2017/emma_depression_pp_if/"
+    RCLONE_SHARED <- "data:/analyses/results_shared/code_minor/2017/emma_depression_pp_if/"
+  }
+  
+  RAWmisc::InitialiseProject(
+    HOME = "/git/code_minor/2017/emma_depression_pp_if/",
+    RAW = "/tmp/data_raw/code_minor/2017/emma_depression_pp_if/",
+    CLEAN = "/tmp/data_clean/code_minor/2017/emma_depression_pp_if",
+    BAKED = "/tmp/results_baked/code_minor/2017/emma_depression_pp_if/",
+    FINAL = "/tmp/results_final/code_minor/2017/emma_depression_pp_if/",
+    SHARED = SHARED,
+    RCLONE_RAW = "crypt:/data_raw/code_minor/2017/emma_depression_pp_if/",
+    RCLONE_SHARED = RCLONE_SHARED
+  )
+}
 
 library(data.table)
 library(ggplot2)

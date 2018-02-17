@@ -2,7 +2,7 @@ if(.Platform$OS.type=="unix"){
   RAWmisc::UseRClone()
   RAWmisc::AllowFileManipulationFromInitialiseProject()
   
-  if(dir.exists("/dropbox")){
+  if(length(list.files("/dropbox"))>0){
     SHARED <- "/dropbox/analyses/results_shared/code_minor/2017/emma_depression_pp_if/"
     RCLONE_SHARED <- NULL
   } else {
