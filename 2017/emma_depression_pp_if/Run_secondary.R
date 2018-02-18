@@ -26,6 +26,7 @@ library(data.table)
 library(ggplot2)
 
 dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,"secondary_aim"))
+dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,"secondary_aim","residuals"))
 
 d <- haven::read_sav(file.path(RAWmisc::PROJ$RAW,"Secondary aim_PPart_180216 to Richard.sav"))
 setDT(d)
@@ -135,6 +136,24 @@ for(i in 1:length(IFs)) for(m in c("crude")) {
   retval$varNum <- 1:nrow(retval)
   retval$model <- m
   retval$IF <- IFs[i]
+  
+  plotData <- data.frame(resid=residuals(fit),pred=predict(fit))
+  q <- ggplot(plotData,aes(x=pred,y=resid))
+  q <- q + geom_hline(yintercept=0,colour="red")
+  q <- q + geom_point()
+  q <- q + labs(title=IFs[i])
+  q <- q + scale_x_continuous("Predicted")
+  q <- q + scale_y_continuous("Residuals")
+  RAWmisc::saveA4(q,filename=file.path(
+    RAWmisc::PROJ$SHARED_TODAY,"secondary_aim","residuals",sprintf("%s_resid_vs_pred.png",IFs[i])
+  ))
+  
+  q <- ggplot(plotData,aes(sample=resid))
+  q <- q + geom_qq()
+  q <- q + labs(title=IFs[i])
+  RAWmisc::saveA4(q,filename=file.path(
+    RAWmisc::PROJ$SHARED_TODAY,"secondary_aim","residuals",sprintf("%s_q_q_plot.png",IFs[i])
+  ))
   
   res[[resIndex]] <- retval
   resIndex <- resIndex + 1
