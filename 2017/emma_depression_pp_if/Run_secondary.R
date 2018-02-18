@@ -155,6 +155,13 @@ for(i in 1:length(IFs)) for(m in c("crude")) {
     RAWmisc::PROJ$SHARED_TODAY,"secondary_aim","residuals",sprintf("%s_q_q_plot.png",IFs[i])
   ))
   
+  q <- ggplot(plotData,aes(x=resid))
+  q <- q + geom_density()
+  q <- q + labs(title=IFs[i])
+  RAWmisc::saveA4(q,filename=file.path(
+    RAWmisc::PROJ$SHARED_TODAY,"secondary_aim","residuals",sprintf("%s_histogram.png",IFs[i])
+  ))
+  
   res[[resIndex]] <- retval
   resIndex <- resIndex + 1
 }
