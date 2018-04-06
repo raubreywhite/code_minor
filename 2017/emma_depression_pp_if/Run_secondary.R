@@ -13,9 +13,6 @@ if(.Platform$OS.type=="unix"){
   RAWmisc::InitialiseProject(
     HOME = "/git/code_minor/2017/emma_depression_pp_if/",
     RAW = "/tmp/data_raw/code_minor/2017/emma_depression_pp_if/",
-    CLEAN = "/tmp/data_clean/code_minor/2017/emma_depression_pp_if",
-    BAKED = "/tmp/results_baked/code_minor/2017/emma_depression_pp_if/",
-    FINAL = "/tmp/results_final/code_minor/2017/emma_depression_pp_if/",
     SHARED = SHARED,
     RCLONE_RAW = "crypt:/data_raw/code_minor/2017/emma_depression_pp_if/",
     RCLONE_SHARED = RCLONE_SHARED
@@ -62,6 +59,7 @@ for(i in IFs){
     formulaC1 <- sprintf("%s ~ timpoint_pg0_pp1 + depressionstatus_at_sampling + interaction_timpoint_depstatus_at_sampl + %s",i,j)
     fitC1 <- lm(as.formula(formulaC1),data=d)
     retval <- data.frame(
+      IF=i,
       confounder=j,
       coefBase=coef(fitBase)["interaction_timpoint_depstatus_at_sampl"],
       coefAdjusted=coef(fitC1)["interaction_timpoint_depstatus_at_sampl"],
@@ -82,6 +80,7 @@ confoundersDecided <- as.character(confounders[changeMoreThan10perc>=0.1]$confou
 
 fileConn<-file(file.path(RAWmisc::PROJ$SHARED_TODAY,"secondary_aim","details.txt"))
 writeLines(c(
+  "\n\n**MAIN MODEL**\nINFLAMMATION_FACTOR ~ timpoint_pg0_pp1 + depressionstatus_at_sampling + interaction_timpoint_depstatus_at_sampl",
   sprintf("\n\n**POTENTIAL_CONFOUNDERS**\n%s",paste0(confoundersPossible,collapse="\n")),
   sprintf("\n\n**CONFOUNDERS_DECIDED**\n%s",paste0(confoundersDecided,collapse="\n")),
   sprintf("\n\n**IFs**\n%s",paste0(IFs,collapse="\n"))

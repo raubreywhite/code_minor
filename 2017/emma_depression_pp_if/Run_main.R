@@ -13,9 +13,6 @@ if(.Platform$OS.type=="unix"){
   RAWmisc::InitialiseProject(
     HOME = "/git/code_minor/2017/emma_depression_pp_if/",
     RAW = "/tmp/data_raw/code_minor/2017/emma_depression_pp_if/",
-    CLEAN = "/tmp/data_clean/code_minor/2017/emma_depression_pp_if",
-    BAKED = "/tmp/results_baked/code_minor/2017/emma_depression_pp_if/",
-    FINAL = "/tmp/results_final/code_minor/2017/emma_depression_pp_if/",
     SHARED = SHARED,
     RCLONE_RAW = "crypt:/data_raw/code_minor/2017/emma_depression_pp_if/",
     RCLONE_SHARED = RCLONE_SHARED
@@ -82,7 +79,11 @@ for(i in IFs){
   for(j in confoundersPossible){
     formulaC1 <- sprintf("%s ~ %s + %s", "AvsBC",i,j)
     fitC1 <- glm(as.formula(formulaC1),data=d,family=binomial())
-    retval <- data.frame(confounder=j,coefBase=coef(fitBase)[i],coefAdjusted=coef(fitC1)[i],pvalBase=coef(summary(fitBase))[2,4])
+    retval <- data.frame(
+      confounder=j,
+      coefBase=coef(fitBase)[i],
+      coefAdjusted=coef(fitC1)[i],
+      pvalBase=coef(summary(fitBase))[2,4])
     results[[resultsIndex]] <- retval
     resultsIndex <- resultsIndex + 1
   }
@@ -96,11 +97,13 @@ setorder(confounders,-changeMoreThan10perc)
 openxlsx::write.xlsx(confounders, file.path(RAWmisc::PROJ$SHARED_TODAY,"primary_aim","confounders_A_vs_BC.xlsx"))
 
 confoundersDecided <- as.character(confounders[changeMoreThan10perc>=0.1]$confounder)
+confoundersDecidedTop <- confoundersDecided[1:5]
 
 fileConn<-file(file.path(RAWmisc::PROJ$SHARED_TODAY,"primary_aim","details_A_vs_BC.txt"))
 writeLines(c(
   sprintf("\n\n**POTENTIAL_CONFOUNDERS**\n%s",paste0(confoundersPossible,collapse="\n")),
   sprintf("\n\n**CONFOUNDERS_DECIDED**\n%s",paste0(confoundersDecided,collapse="\n")),
+  sprintf("\n\n**CONFOUNDERS_DECIDED_TOP5**\n%s",paste0(confoundersDecidedTop,collapse="\n")),
   sprintf("\n\n**IFs**\n%s",paste0(IFandZ,collapse="\n"))
 ), fileConn)
 close(fileConn)
@@ -134,9 +137,11 @@ for(OUTCOME in c("AvsBC","AvsB")){
   
   res <- vector("list",1000)
   resIndex <- 1
-  for(i in 1:length(IFandZ)) for(m in c("crude","adjusted_nobf","adjusted_bf")) {
+  for(i in 1:length(IFandZ)) for(m in c("crude","adj_5_nobf","adjusted_nobf","adjusted_bf")) {
     if(m=="crude"){
       formula <- sprintf("outcome ~ %s",IFandZ[i])  
+    } else if(m=="adj_5_nobf"){
+      formula <- sprintf("outcome ~ %s + %s",IFandZ[i],paste(confoundersDecidedTop[confoundersDecidedTop!="breastfeeding_6vpp"],collapse="+"))
     } else if(m=="adjusted_nobf"){
       formula <- sprintf("outcome ~ %s + %s",IFandZ[i],paste(confoundersDecided[confoundersDecided!="breastfeeding_6vpp"],collapse="+"))
     } else if(m=="adjusted_bf"){
@@ -144,10 +149,18 @@ for(OUTCOME in c("AvsBC","AvsB")){
     }
     
     fit <- glm2::glm2(as.formula(formula),data=data,family=binomial())
+     
+    if(m=="crude"){
+      vif <- 1
+    } else {
+      vif <- car::vif(fit)
+      vif <- vif[names(vif)==IFandZ[i]]
+    }
     retval <- data.frame(coef(summary(fit)))
     retval$var <- row.names(retval)
     retval$varNum <- 1:nrow(retval)
     retval$model <- m
+    retval$vif <- vif
     
     res[[resIndex]] <- retval
     resIndex <- resIndex + 1
@@ -156,8 +169,8 @@ for(OUTCOME in c("AvsBC","AvsB")){
   res <- rbindlist(res)
   res <- res[varNum==2]
   setnames(res,"Pr...z..","p")
-  res[,model:=factor(model,levels=c("crude","adjusted_nobf","adjusted_bf"))]
-  res[,pbonf:=p*.N/3]
+  res[,model:=factor(model,levels=c("crude","adj_5_nobf","adjusted_nobf","adjusted_bf"))]
+  res[,pbonf:=p*.N/4]
   res[,sig:=ifelse(p<0.05,"*","")]
   res[,sigbonf:=ifelse(pbonf<0.05,"*","")]
   res[,est:=sprintf("%s",
@@ -166,10 +179,14 @@ for(OUTCOME in c("AvsBC","AvsB")){
   res[pbonf>1,pbonf:=1]
   res[,pbonf:=sprintf("%s%s",RAWmisc::Format(pbonf,digits=3),sigbonf)]
   
-  res <- dcast.data.table(res,var~model,value.var = c("est","p","pbonf"))
+  res[,vif:=RAWmisc::Format(vif,digits=2)]
+  
+  res <- dcast.data.table(res,var~model,value.var = c("est","p","pbonf","vif"))
   newOrder <- "var"
-  for(f1 in c("crude","adjusted_nobf","adjusted_bf")) for(f2 in c("est","p","pbonf")) newOrder <- c(newOrder,paste0(f2,"_",f1))
+  for(f1 in c("crude","adj_5_nobf","adjusted_nobf","adjusted_bf")) for(f2 in c("est","p","pbonf","vif")) newOrder <- c(newOrder,paste0(f2,"_",f1))
   setcolorder(res,newOrder)
+  
+  res[,vif_crude:=NULL]
   
   set.seed(4)
   
