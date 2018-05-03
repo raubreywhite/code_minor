@@ -29,4 +29,61 @@ CleanData()
 ls()
 
 SeasonalAnalysis()
+SeasonalAnalysisWithInteraction()
 SeasonalAdjustedIMPredictingDepression()
+
+stack_pg <- RAWmisc::CreateStackSkeleton(n=length(pg_ims))
+stack_pg$regressionType <- "logistic"
+stack_pg$outcome <- pg_depressed
+stack_pg$exposure <- sprintf("seasonal_resid_%s",pg_ims)
+stack_pg$confounders <- list(c("SIN_366_preg","COS_366_preg"))
+stack_pg$data <- "pg"
+
+retval <- vector("list",length=nrow(stack_pg))
+for(i in 1:length(retval)){
+  retval[[i]] <- RAWmisc::ProcessStack(stack=stack_pg,i=i,formatResults=TRUE)
+}
+retval <- rbindlist(retval)
+retval <- RAWmisc::FormatResultsStack(retval,bonf=T,useWald = TRUE, useLRT=FALSE)
+
+dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,"code_check_depression_as_outcome_seasonal_adjusted"))
+openxlsx::write.xlsx(retval,file.path(RAWmisc::PROJ$SHARED_TODAY,"code_check_depression_as_outcome_seasonal_adjusted","pg.xlsx"))
+openxlsx::write.xlsx(stack_pg,file.path(RAWmisc::PROJ$SHARED_TODAY,"code_check_depression_as_outcome_seasonal_adjusted","pg_details.xlsx"))
+
+
+stack_pg <- RAWmisc::CreateStackSkeleton(n=length(pg_ims))
+stack_pg$regressionType <- "logistic"
+stack_pg$outcome <- pg_depressed
+stack_pg$exposure <- sprintf("abs_seasonal_resid_%s",pg_ims)
+stack_pg$confounders <- NA
+stack_pg$data <- "pg"
+
+retval <- vector("list",length=nrow(stack_pg))
+for(i in 1:length(retval)){
+  retval[[i]] <- RAWmisc::ProcessStack(stack=stack_pg,i=i,formatResults = TRUE)
+}
+retval <- rbindlist(retval)
+retval <- RAWmisc::FormatResultsStack(retval,bonf=T,useWald=TRUE, useLRT=FALSE)
+
+dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,"depression_as_outcome_abs_seasonal_difference"))
+openxlsx::write.xlsx(retval,file.path(RAWmisc::PROJ$SHARED_TODAY,"depression_as_outcome_abs_seasonal_difference","pg.xlsx"))
+openxlsx::write.xlsx(stack_pg,file.path(RAWmisc::PROJ$SHARED_TODAY,"depression_as_outcome_abs_seasonal_difference","pg_details.xlsx"))
+
+stack_pp <- RAWmisc::CreateStackSkeleton(n=length(pp_ims))
+stack_pp$regressionType <- "logistic"
+stack_pp$outcome <- pp_depressed
+stack_pp$exposure <- sprintf("abs_seasonal_resid_%s",pp_ims)
+stack_pp$confounders <- NA
+stack_pp$data <- "pp"
+
+retval <- vector("list",length=nrow(stack_pp))
+for(i in 1:length(retval)){
+  retval[[i]] <- RAWmisc::ProcessStack(stack=stack_pp,i=i,formatResults = TRUE)
+}
+retval <- rbindlist(retval)
+retval <- RAWmisc::FormatResultsStack(retval,bonf=TRUE,useWald=TRUE, useLRT=FALSE)
+
+openxlsx::write.xlsx(retval,file.path(RAWmisc::PROJ$SHARED_TODAY,"depression_as_outcome_abs_seasonal_difference","pp.xlsx"))
+openxlsx::write.xlsx(stack_pp,file.path(RAWmisc::PROJ$SHARED_TODAY,"depression_as_outcome_abs_seasonal_difference","pp_details.xlsx"))
+
+

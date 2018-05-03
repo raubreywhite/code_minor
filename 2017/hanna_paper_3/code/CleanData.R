@@ -128,6 +128,20 @@ CleanData <- function(){
   pg_ims <- c(paste0("im_log2_",pg_ims),pg_outcome_zscore)
   pp_ims <- c(paste0("im_log2_",pp_ims),pp_outcome_zscore)
   
+  for(p in pg_ims){
+    fit <- lm(as.formula(sprintf("%s~SIN_366_preg + COS_366_preg",p)),data=pg,na.action=na.exclude)
+    pred <- predict(fit)
+    pg[[sprintf("seasonal_resid_%s",p)]] <- residuals(fit)
+    pg[[sprintf("abs_seasonal_resid_%s",p)]] <- abs(pg[[sprintf("seasonal_resid_%s",p)]])
+  }
+  
+  for(p in pp_ims){
+    fit <- lm(as.formula(sprintf("%s~SIN_366_pp + COS_366_pp",p)),data=pp,na.action=na.exclude)
+    pred <- predict(fit)
+    pp[[sprintf("seasonal_resid_%s",p)]] <- residuals(fit)
+    pp[[sprintf("abs_seasonal_resid_%s",p)]] <- abs(pp[[sprintf("seasonal_resid_%s",p)]])
+  }
+  
   assign("pg", pg, envir=globalenv())
   assign("pg_ims", pg_ims, envir=globalenv())
   assign("pg_outcome_zscore", pg_outcome_zscore, envir=globalenv())

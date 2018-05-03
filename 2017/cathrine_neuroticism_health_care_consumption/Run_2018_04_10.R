@@ -49,9 +49,8 @@ library(ggplot2)
 library(rms)
 
 d <- data.table(haven::read_sav(file.path(
-  RAWmisc::PROJ$RAW,"Neuroticism_health_consumption_180328.sav"
+  RAWmisc::PROJ$RAW,"Neuroticism_health_consumption_180123.sav"
 )))
-setnames(d,"Graviditetsår","Graviditetsar")
 
 dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,"tables"))
 dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,"figures"))
@@ -64,8 +63,6 @@ nrow(d)
 
 d[,Base_prog_CA:=abs(Base_prog_CA-1)]
 
-
-
 OUTCOMES_BINARY <- c(
   "Base_prog_CA",
   "Hospital_admission_CA",
@@ -74,7 +71,9 @@ OUTCOMES_BINARY <- c(
   "Aurora_CA",
   "Annan_behandling",
   "Obstetrician_fetal_movements_D",
-  "Obstetrician_contractions_D"
+  "Obstetrician_contractions_D",
+  "Elective_CS_CA",
+  "Induction_CA"
 )
 
 OUTCOMES_CONTINUOUS <- c(
@@ -94,145 +93,13 @@ CONFOUNDERS_BINARY <- c(
   "Education_CA",
   "Working_status_CA",
   "Single_CA",
-  "Psychiatric_disorder_medication_CA",
-  "Elective_CS_CA",
-  "Induction_CA",
-  "Graviditetsar"
+  "Psychiatric_disorder_medication_CA"
 )
 
 CONFOUNDERS_CATEGORY <- c(
   "Age_3_CA",
   "BMI_3_CA"
 )
-
-for(i in c(
-  CONFOUNDERS_CATEGORY
-)){
-  d[[i]] <- haven::as_factor(d[[i]])
-}
-
-p25 <- quantile(d[[EXPOSURE]],prob=0.25,na.rm=T)
-d[["IQR_Neuroticism_CA"]] <- (d[["Neuroticism_CA"]]-p25)/IQR(d[["Neuroticism_CA"]])
-
-Table1()
-
-stack_bin <- RAWmisc::CreateStackSkeleton(n=length(OUTCOMES_BINARY))
-stack_bin$regressionType <- "logistic"
-stack_bin$outcome <- OUTCOMES_BINARY
-stack_bin$exposure <- "IQR_Neuroticism_CA"
-stack_bin$confounders <- list(c(CONFOUNDERS_BINARY,CONFOUNDERS_CATEGORY))
-stack_bin$data <- "d"
-
-stack_con <- RAWmisc::CreateStackSkeleton(n=length(OUTCOMES_CONTINUOUS))
-stack_con$regressionType <- "poisson"
-stack_con$outcome <- OUTCOMES_CONTINUOUS
-stack_con$exposure <- "IQR_Neuroticism_CA"
-stack_con$confounders <- list(c(CONFOUNDERS_BINARY,CONFOUNDERS_CATEGORY))
-stack_con$data <- "d"
-
-stack_linear_with_graviditetsar <- rbind(stack_bin, stack_con)
-stack_linear_without_graviditetsar <- copy(stack_linear_with_graviditetsar)
-for(i in 1:length(stack_linear_without_graviditetsar$confounders)){
-  stack_linear_without_graviditetsar$confounders[[i]] <- stack_linear_without_graviditetsar$confounders[[i]][stack_linear_without_graviditetsar$confounders[[i]]!="Graviditetsar"]
-}
-
-stack_spline_with_graviditetsar <- copy(stack_linear_with_graviditetsar)
-stack_spline_with_graviditetsar$exposure <- "splines::ns(IQR_Neuroticism_CA,df=4)"
-
-stack_spline_without_graviditetsar <- copy(stack_linear_without_graviditetsar)
-stack_spline_without_graviditetsar$exposure <- "splines::ns(IQR_Neuroticism_CA,df=4)"
-
-retval <- list()
-for(stack_name in c(
-  "stack_linear_with_graviditetsar",
-  "stack_linear_without_graviditetsar",
-  "stack_spline_with_graviditetsar",
-  "stack_spline_without_graviditetsar"
-)){
-  stack <- get(stack_name)
-  
-  temp <- vector("list",length=nrow(stack))
-  for(i in 1:length(temp)){
-    temp[[i]] <- RAWmisc::ProcessStack(stack=stack,i=i,formatResults=TRUE)
-  }
-  retval[[stack_name]] <- rbindlist(temp)
-  retval[[stack_name]][,stack_name:=stack_name]
-}
-
-a <- retval[["stack_linear_without_graviditetsar"]][,c("regressionType","outcome","a_aic")]
-setnames(a,"a_aic","a_linear_aic")
-b <- retval[["stack_spline_without_graviditetsar"]][,c("outcome","a_aic")]
-setnames(b,"a_aic","a_spline_aic")
-
-spline_or_linear <- merge(a,b,by="outcome")
-spline_or_linear[,aic_linear_minus_spline:=a_linear_aic-a_spline_aic]
-spline_or_linear[,exposure:=ifelse(aic_linear_minus_spline>3,"0 to 1, splines::ns(IQR_Neuroticism_CA,df=4)","IQR_Neuroticism_CA")]
-
-openxlsx::write.xlsx(spline_or_linear,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","table2_without_gravidetetsar_spline_or_linear.xlsx"))
-
-retval <- rbindlist(retval)
-retval <- merge(retval,spline_or_linear[,c("outcome","exposure")],by=c("outcome","exposure"))
-setorder(retval,stack_name,outcome)
-
-retval_with_graviditetsar <- retval[stringr::str_detect(stack_name,"_with_")]
-retval_without_graviditetsar <- retval[stringr::str_detect(stack_name,"_without_")]
-retval_with_graviditetsar[,stack_name:=NULL]
-retval_without_graviditetsar[,stack_name:=NULL]
-
-retval_with_graviditetsar <- RAWmisc::FormatResultsStack(retval_with_graviditetsar,bonf=F,useWald = FALSE, useLRT=TRUE)
-retval_without_graviditetsar <- RAWmisc::FormatResultsStack(retval_without_graviditetsar,bonf=F,useWald = FALSE, useLRT=TRUE)
-
-openxlsx::write.xlsx(retval_with_graviditetsar,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","table3_results_with_graviditetsar.xlsx"))
-openxlsx::write.xlsx(retval_without_graviditetsar,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","table3_results_without_graviditetsar.xlsx"))
-
-for(stack_name in c(
-  "stack_linear_with_graviditetsar",
-  "stack_linear_without_graviditetsar",
-  "stack_spline_with_graviditetsar",
-  "stack_spline_without_graviditetsar"
-)){
-  openxlsx::write.xlsx(get(stack_name),file.path(RAWmisc::PROJ$SHARED_TODAY,"tables",sprintf("details_table3_%s.xlsx",stack_name)))
-}
-
-
-stack_interaction <- stack_linear_without_graviditetsar[stack_linear_without_graviditetsar$outcome=="Prenatal_diagnostics_CA",]
-stack_interaction$confounders[[1]] <- c(stack_interaction$confounders[[1]],stack_interaction$exposure[[1]])
-stack_interaction$exposure[[1]] <- "IQR_Neuroticism_CA:Age_3_CA"
-
-retval <- vector("list",length=nrow(stack_interaction))
-for(i in 1:length(retval)){
-  retval[[i]] <- RAWmisc::ProcessStack(stack=stack_interaction,i=i,formatResults=TRUE)
-}
-retval <- rbindlist(retval)
-
-retval[[stack_name]] <- rbindlist(temp)
-retval[[stack_name]][,stack_name:=stack_name]
-
-openxlsx::write.xlsx(stack_interaction,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","details_interaction.xlsx"))
-openxlsx::write.xlsx(retval,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","interaction.xlsx"))
-
-
-
-
-
-
-
-retval <- vector("list",length=nrow(stack))
-for(i in 1:length(retval)){
-  retval[[i]] <- RAWmisc::ProcessStack(stack=stack,i=i,formatResults=TRUE)
-}
-retval <- rbindlist(retval)
-retval <- RAWmisc::FormatResultsStack(retval,bonf=T,useWald = TRUE, useLRT=FALSE)
-
-stack_spline <- stack
-stack_spline$exposure <- "splines::ns(IQR_Neuroticism_CA,df=4)"
-
-retval_spline <- vector("list",length=nrow(stack_spline))
-for(i in 1:length(retval_spline)){
-  retval_spline[[i]] <- RAWmisc::ProcessStack(stack=stack_spline,i=i,formatResults=TRUE)
-}
-retval_spline <- rbindlist(retval_spline)
-retval_spline <- RAWmisc::FormatResultsStack(retval_spline,bonf=T,useWald = FALSE, useLRT=TRUE)
 
 var <- d$Base_prog_CA
 
@@ -330,8 +197,29 @@ SummarizeDispatch <- function(var,label=NULL){
   return(retval)
 }
 
+for(i in c(
+  CONFOUNDERS_CATEGORY
+)){
+  d[[i]] <- haven::as_factor(d[[i]])
+}
 
+res <- list()
+for(i in c(
+  OUTCOMES_BINARY,
+  OUTCOMES_CONTINUOUS,
+  EXPOSURE,
+  EFFECT_MODIFIER,
+  CONFOUNDERS_BINARY,
+  CONFOUNDERS_CATEGORY
+)){
+  res[[i]] <- SummarizeDispatch(d[[i]],label=i)
+}
 
+res <- rbindlist(res)
+
+openxlsx::write.xlsx(res, file=file.path(
+  RAWmisc::PROJ$SHARED_TODAY,"tables","table_1.xlsx"
+))
 
 p25 <- quantile(d[[EXPOSURE]],prob=0.25,na.rm=T)
 p25_plus_1 <- p25+1
