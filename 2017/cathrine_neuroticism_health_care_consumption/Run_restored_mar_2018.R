@@ -1,4 +1,13 @@
-RAWmisc::InitialiseOpinionatedUnix(project="code_minor/2017/cathrine_neuroticism_health_care_consumption/")
+RAWmisc::AllowFileManipulationFromInitialiseProject()
+RAWmisc::InitialiseProject(
+  HOME = "/git/code_minor/2017/cathrine_neuroticism_health_care_consumption/",
+  RAW = "/analyses/data_raw/code_minor/2017/cathrine_neuroticism_health_care_consumption/",
+  CLEAN = "/analyses/data_clean/code_minor/2017/cathrine_neuroticism_health_care_consumption",
+  BAKED = "/analyses/results_baked/code_minor/2017/cathrine_neuroticism_health_care_consumption/",
+  FINAL = "/analyses/results_final/code_minor/2017/cathrine_neuroticism_health_care_consumption/",
+  SHARED = "/dropbox/results_shared/code_minor/2017/cathrine_neuroticism_health_care_consumption/"
+)
+
 
 # *Neuroticism health care consumption*
 #   
@@ -73,9 +82,6 @@ OUTCOMES_BINARY <- c(
   "Obstetrician_fetal_movements_D",
   "Obstetrician_contractions_D"
 )
-#,
-#"Elective_CS_CA",
-#"Induction_CA"
 
 OUTCOMES_CONTINUOUS <- c(
   "Obgyn_physician_count_CA",
@@ -203,33 +209,30 @@ for(i in c(
 )){
   d[[i]] <- haven::as_factor(d[[i]])
 }
-d <- haven::zap_labels(d)
 
-if(FALSE){
-  res <- list()
-  for(i in c(
-    OUTCOMES_BINARY,
-    OUTCOMES_CONTINUOUS,
-    EXPOSURE,
-    EFFECT_MODIFIER,
-    CONFOUNDERS_BINARY,
-    CONFOUNDERS_CATEGORY
-  )){
-    res[[i]] <- SummarizeDispatch(d[[i]],label=i)
-  }
-  
-  res <- rbindlist(res)
-  
-  openxlsx::write.xlsx(res, file=file.path(
-    RAWmisc::PROJ$SHARED_TODAY,"tables","table_1.xlsx"
-  ))
+res <- list()
+for(i in c(
+  OUTCOMES_BINARY,
+  OUTCOMES_CONTINUOUS,
+  EXPOSURE,
+  EFFECT_MODIFIER,
+  CONFOUNDERS_BINARY,
+  CONFOUNDERS_CATEGORY
+)){
+  res[[i]] <- SummarizeDispatch(d[[i]],label=i)
 }
+
+res <- rbindlist(res)
+
+openxlsx::write.xlsx(res, file=file.path(
+  RAWmisc::PROJ$SHARED_TODAY,"tables","table_1.xlsx"
+))
 
 p25 <- quantile(d[[EXPOSURE]],prob=0.25,na.rm=T)
 p25_plus_1 <- p25+1
 p75 <- quantile(d[[EXPOSURE]],prob=0.75,na.rm=T)
 
-ddist0 <<- datadist(d[,c(
+ddist0 <- datadist(d[,c(
   OUTCOMES_BINARY,
   OUTCOMES_CONTINUOUS,
   EXPOSURE,
@@ -238,7 +241,7 @@ ddist0 <<- datadist(d[,c(
 ),with=F])
 ddist0$limits[[EXPOSURE]][2] <- p25 ##### SETTING REFERENCE VALUE FOR NEUROTICISM
 
-ddist1 <<- datadist(d[,c(
+ddist1 <- datadist(d[,c(
   OUTCOMES_BINARY,
   OUTCOMES_CONTINUOUS,
   EXPOSURE,

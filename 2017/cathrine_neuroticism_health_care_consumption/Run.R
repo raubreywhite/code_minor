@@ -64,7 +64,26 @@ nrow(d)
 
 d[,Base_prog_CA:=abs(Base_prog_CA-1)]
 
+OUTCOMES_RECODE_TO_BINARY <- c(
+                               "Läkare_tid.blödning",
+                               "Läkare_PE_HT",
+                               "Läkare_minskade_fosterrörelser",
+                               "Läkare_pga_tid.komplikation",
+                               "Läkare_sen.blödning",
+                               "Läkare_disk.förlossningssätt",
+                               "Läkare_missbildning_tillväxthämning",
+                               "Läkare_oro_sömnsvårighet",
+                               "Läkare_prem.sammandragningar",
+                               "Läkare_hyperemesis",
+                               "Läkare_klåda_hepatos",
+                               "Läkare_misst_vattenavgång",
+                               "Läkare_buksmärta",
+                               "Läkare_vändning_överburenhet",
+                               "Läkare_annat")
 
+for(i in OUTCOMES_RECODE_TO_BINARY){
+  d[[i]] <- as.numeric(d[[i]]>0)
+}
 
 OUTCOMES_BINARY <- c(
   "Base_prog_CA",
@@ -74,7 +93,10 @@ OUTCOMES_BINARY <- c(
   "Aurora_CA",
   "Annan_behandling",
   "Obstetrician_fetal_movements_D",
-  "Obstetrician_contractions_D"
+  "Obstetrician_contractions_D",
+  "Elective_CS_CA",
+  "Induction_CA",
+  OUTCOMES_RECODE_TO_BINARY
 )
 
 OUTCOMES_CONTINUOUS <- c(
@@ -83,6 +105,8 @@ OUTCOMES_CONTINUOUS <- c(
   "Maternal_care_midwife_CA",
   "Ultrasounds_count_CA"
 )
+#"Läkare_duplex",
+#"Läkare_DIAB",
 
 EXPOSURE <- "Neuroticism_CA"
 
@@ -95,8 +119,6 @@ CONFOUNDERS_BINARY <- c(
   "Working_status_CA",
   "Single_CA",
   "Psychiatric_disorder_medication_CA",
-  "Elective_CS_CA",
-  "Induction_CA",
   "Graviditetsar"
 )
 
@@ -124,7 +146,7 @@ stack_bin$confounders <- list(c(CONFOUNDERS_BINARY,CONFOUNDERS_CATEGORY))
 stack_bin$data <- "d"
 
 stack_con <- RAWmisc::CreateStackSkeleton(n=length(OUTCOMES_CONTINUOUS))
-stack_con$regressionType <- "poisson"
+stack_con$regressionType <- "negbin"
 stack_con$outcome <- OUTCOMES_CONTINUOUS
 stack_con$exposure <- "IQR_Neuroticism_CA"
 stack_con$confounders <- list(c(CONFOUNDERS_BINARY,CONFOUNDERS_CATEGORY))
@@ -153,6 +175,8 @@ for(stack_name in c(
   
   temp <- vector("list",length=nrow(stack))
   for(i in 1:length(temp)){
+    print(stack$outcome[i])
+    print(xtabs(~d[[stack$outcome[i]]]))
     temp[[i]] <- RAWmisc::ProcessStack(stack=stack,i=i,formatResults=TRUE)
   }
   retval[[stack_name]] <- rbindlist(temp)
@@ -205,9 +229,6 @@ for(i in 1:length(retval)){
 }
 retval <- rbindlist(retval)
 
-retval[[stack_name]] <- rbindlist(temp)
-retval[[stack_name]][,stack_name:=stack_name]
-
 openxlsx::write.xlsx(stack_interaction,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","details_interaction.xlsx"))
 openxlsx::write.xlsx(retval,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","interaction.xlsx"))
 
@@ -215,372 +236,3 @@ openxlsx::write.xlsx(retval,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","inter
 
 
 
-
-
-retval <- vector("list",length=nrow(stack))
-for(i in 1:length(retval)){
-  retval[[i]] <- RAWmisc::ProcessStack(stack=stack,i=i,formatResults=TRUE)
-}
-retval <- rbindlist(retval)
-retval <- RAWmisc::FormatResultsStack(retval,bonf=T,useWald = TRUE, useLRT=FALSE)
-
-stack_spline <- stack
-stack_spline$exposure <- "splines::ns(IQR_Neuroticism_CA,df=4)"
-
-retval_spline <- vector("list",length=nrow(stack_spline))
-for(i in 1:length(retval_spline)){
-  retval_spline[[i]] <- RAWmisc::ProcessStack(stack=stack_spline,i=i,formatResults=TRUE)
-}
-retval_spline <- rbindlist(retval_spline)
-retval_spline <- RAWmisc::FormatResultsStack(retval_spline,bonf=T,useWald = FALSE, useLRT=TRUE)
-
-var <- d$Base_prog_CA
-
-SummarizeBinary <- function(var){
-  x <- data.table(x=var)
-  x <- x[,.(n=.N),by=.(x)]
-  skeleton <- data.table(x=c(1,0,NA))
-  skeleton <- merge(skeleton,x,by="x",all.x=T)
-  skeleton[is.na(n),n:=0]
-  skeleton[is.na(x),x:=-1]
-  setorder(skeleton,-x)
-  skeleton[,label:=c("True","False","Missing")]
-  skeleton[x!=-1,percent:=sum(n)]
-  skeleton[,percent:=sprintf("%s%%",RAWmisc::Format(n/percent*100,digits=1))]
-  skeleton[x==-1,percent:="-"]
-  skeleton[,x:=NULL]
-  setcolorder(skeleton,c("label","n","percent"))
-  
-  skeleton <- rbind(skeleton[1:2],skeleton)
-  for(i in names(skeleton)){
-    skeleton[,(i):=as.character(get(i))]
-    skeleton[1,(i):=""]
-    skeleton[2,(i):=i]
-  }
-  return(skeleton)
-}
-
-SummarizeContinuous <- function(var){
-  x <- data.table(x=var)
-  x[,label:="Missing"]
-  x[!is.na(x),label:="Median (IQR)"]
-  x <- x[,.(
-    n=.N,
-    median=median(x,na.rm=T),
-    p25=quantile(x,probs=0.25,na.rm=T),
-    p75=quantile(x,probs=0.75,na.rm=T)
-    ),by=label]
-  x[,median_iqr:=sprintf("%s (%s-%s)",
-                         RAWmisc::Format(median),
-                         RAWmisc::Format(p25),
-                         RAWmisc::Format(p75))]
-  x <- x[,c("label","n","median_iqr")]
-  skeleton <- data.table(label=c("Median (IQR)","Missing"))
-  skeleton <- merge(skeleton,x,by="label",all.x=T)
-  skeleton[is.na(n),n:=0]
-  skeleton[label=="Missing",median_iqr:="-"]
-  
-  skeleton <- rbind(skeleton[1:2],skeleton)
-  for(i in names(skeleton)){
-    skeleton[,(i):=as.character(get(i))]
-    skeleton[1,(i):=""]
-    skeleton[2,(i):=i]
-  }
-  return(skeleton)
-}
-
-SummarizeCategory <- function(var){
-  x <- data.table(x=var)
-  x <- x[,.(n=.N),by=.(x)]
-  setorder(x,-x)
-  skeleton <- data.table(x=unique(c(NA,as.character(unique(var)))))
-  skeleton <- merge(skeleton,x,by="x",all.x=T)
-  skeleton[,x:=factor(x,levels=levels(var))]
-  setorder(skeleton,-x)
-  skeleton[,x:=as.character(x)]
-  skeleton[is.na(n),n:=0]
-  skeleton[is.na(x),x:="Missing"]
-  skeleton <- skeleton[.N:1]
-  
-  skeleton[x!="Missing",percent:=sum(n)]
-  skeleton[,percent:=sprintf("%s%%",RAWmisc::Format(n/percent*100,digits=1))]
-  skeleton[x=="Missing",percent:="-"]
-  
-  skeleton <- rbind(skeleton[1:2],skeleton)
-  for(i in names(skeleton)){
-    skeleton[,(i):=as.character(get(i))]
-    skeleton[1,(i):=""]
-    skeleton[2,(i):=i]
-  }
-  return(skeleton)
-}
-
-SummarizeDispatch <- function(var,label=NULL){
-  if(sum(!unique(var) %in% c(1,0,NA))==0){
-    retval <- SummarizeBinary(var)
-  } else if(is.factor(var)){
-    retval <- SummarizeCategory(var)
-  } else {
-    retval <- SummarizeContinuous(var)
-  }
-  
-  if(!is.null(label)){
-    retval <- cbind(c(" ",rep(label,nrow(retval)-1)),retval)
-  }
-  return(retval)
-}
-
-
-
-
-p25 <- quantile(d[[EXPOSURE]],prob=0.25,na.rm=T)
-p25_plus_1 <- p25+1
-p75 <- quantile(d[[EXPOSURE]],prob=0.75,na.rm=T)
-
-ddist0 <- datadist(d[,c(
-  OUTCOMES_BINARY,
-  OUTCOMES_CONTINUOUS,
-  EXPOSURE,
-  CONFOUNDERS_BINARY,
-  CONFOUNDERS_CATEGORY
-),with=F])
-ddist0$limits[[EXPOSURE]][2] <- p25 ##### SETTING REFERENCE VALUE FOR NEUROTICISM
-
-ddist1 <- datadist(d[,c(
-  OUTCOMES_BINARY,
-  OUTCOMES_CONTINUOUS,
-  EXPOSURE,
-  CONFOUNDERS_BINARY,
-  CONFOUNDERS_CATEGORY
-),with=F])
-ddist1$limits[[EXPOSURE]][2] <- p25 ##### SETTING REFERENCE VALUE FOR NEUROTICISM
-
-##### RUNNING THE MODEL
-stack <- data.frame(
-  outcome=c(OUTCOMES_BINARY,OUTCOMES_CONTINUOUS),
-  model=c(rep("logistic",length(OUTCOMES_BINARY)),rep("quasipoisson",length(OUTCOMES_CONTINUOUS)))
-  )
-
-res <- vector("list",length=nrow(stack))
-for(i in 1:nrow(stack)){
-  OUTCOME <- stack$outcome[i]
-  NUM_KNOTS <- 4
-  EXPOSURE_AFTER_AIC <- EXPOSURE
-  FORM <- "linear"
-  if(OUTCOME %in% c("Midwife_ObGyn_phone_visits_CA","Hospital_admission_CA")){
-    EXPOSURE_AFTER_AIC <- sprintf("rcs(%s,3)",EXPOSURE)
-    FORM <- "rcs(3knots)"
-  }
-  if(stack$model[i]=="logistic"){
-    fam <- binomial()
-    famForAIC <- gaussian()
-  } else {
-    fam <- quasipoisson()
-    famForAIC <- poisson()
-  }
-  
-  options(datadist='ddist0')
-  
-  formulas <- list()
-  
-  formulas[["formula1crude_linear"]] <- sprintf("%s ~ %s",
-                                  OUTCOME,
-                                  EXPOSURE)
-  formulas[["formula1crude_3"]] <- sprintf("%s ~ rcs(%s,%s)",
-                             OUTCOME,
-                             EXPOSURE,
-                             3)
-  formulas[["formula1crude_4"]] <- sprintf("%s ~ rcs(%s,%s)",
-                             OUTCOME,
-                             EXPOSURE,
-                             4)
-  formulas[["formula0adj"]] <- sprintf("%s ~ %s + %s",
-                         OUTCOME,
-                         CONFOUNDERS_BINARY,
-                         CONFOUNDERS_CATEGORY)
-  formulas[["formula1adj"]] <- sprintf("%s ~ %s + %s + %s",
-                                       OUTCOME,
-                                       EXPOSURE_AFTER_AIC,
-                                       CONFOUNDERS_BINARY,
-                                       CONFOUNDERS_CATEGORY)
-  
-  formulas[["formula0adj_CRUDE"]] <- sprintf("%s ~ 1",
-                                             OUTCOME)
-  formulas[["formula1adj_CRUDE"]] <- sprintf("%s ~ %s",
-                                       OUTCOME,
-                                       EXPOSURE_AFTER_AIC)
-  
-  modelResults <- list()
-  for(f in names(formulas)){
-    if(stringr::str_detect(f,"crude")){
-      famUse <- famForAIC
-    } else {
-      famUse <- fam
-    }
-    modelResults[[f]] <- Glm(as.formula(formulas[[f]]),
-                             x=TRUE, y=TRUE, data=d, family=famUse)
-  }
-
-  #### GETTING OUT THE ESTIMATED LOG-ODDS RATIOS AND 95% CIS FOR DIFFERENT POINTS CRUDE
-  fit <- Glm(as.formula(formulas[["formula1adj_CRUDE"]]),
-             x=TRUE, y=TRUE, data=d, family=fam)
-  toCalcPVAL <- as.data.frame(summary(fit))
-  C_directPval <- 2*(1-pnorm(abs(toCalcPVAL$Effect[1]/toCalcPVAL$`S.E.`[1])))
-  px <- Predict(fit,
-                Neuroticism_CA=sort(c(p25,p25_plus_1,p75,seq(250,350,10))),
-                ref.zero=T)
-  px <- data.table(data.frame(px))
-  C_est_together_1 <- px[Neuroticism_CA==p25_plus_1]$yhat
-  C_est_together_p75 <- px[Neuroticism_CA==p75]$yhat
-  
-  C_l_together_1 <- px[Neuroticism_CA==p25_plus_1]$lower
-  C_l_together_p75 <- px[Neuroticism_CA==p75]$lower
-  
-  C_u_together_1 <- px[Neuroticism_CA==p25_plus_1]$upper
-  C_u_together_p75 <- px[Neuroticism_CA==p75]$upper
- 
-  #### GETTING OUT THE ESTIMATED LOG-ODDS RATIOS AND 95% CIS FOR DIFFERENT POINTS ADJUSTED
-  fit <- Glm(as.formula(formulas[["formula1adj"]]),
-             x=TRUE, y=TRUE, data=d, family=fam)
-  toCalcPVAL <- as.data.frame(summary(fit))
-  directPval <- 2*(1-pnorm(abs(toCalcPVAL$Effect[1]/toCalcPVAL$`S.E.`[1])))
-  px <- Predict(fit,
-                Neuroticism_CA=sort(c(p25,p25_plus_1,p75,seq(250,350,10))),
-                ref.zero=T)
-  p <- px <- data.table(data.frame(px))
-  est_together_1 <- px[Neuroticism_CA==p25_plus_1]$yhat
-  est_together_p75 <- px[Neuroticism_CA==p75]$yhat
-  
-  l_together_1 <- px[Neuroticism_CA==p25_plus_1]$lower
-  l_together_p75 <- px[Neuroticism_CA==p75]$lower
-  
-  u_together_1 <- px[Neuroticism_CA==p25_plus_1]$upper
-  u_together_p75 <- px[Neuroticism_CA==p75]$upper
-  
-  # converting from log-odds ratio to odds ratio
-  p$yhat <- exp(p$yhat)
-  p$lower <- exp(p$lower)
-  p$upper <- exp(p$upper)
-  print(p)
-  
-  q <- ggplot(p,aes(x=Neuroticism_CA,
-                    y=yhat,
-                    ymax=upper,
-                    ymin=lower))
-  q <- q + geom_ribbon(alpha=0.2,colour=NA)
-  q <- q + geom_line()
-  q <- q + geom_vline(xintercept=258,col="red")
-  q <- q + geom_hline(yintercept=1,col="red")
-  #q <- q + labs(caption=sprintf("Interaction p-value: %s",
-  #                              RAWmisc::Format(retval$pval_interaction,3)))
-  RAWmisc::saveA4(q,filename = file.path(
-    RAWmisc::PROJ$SHARED_TODAY,"figures",sprintf("graph_%s.png",OUTCOME)
-  ))
-  
-  #fit1int
-  
-  aic_linear=modelResults[["formula1crude_linear"]]$aic
-  aic_3=modelResults[["formula1crude_3"]]$aic
-  aic_4=modelResults[["formula1crude_4"]]$aic
-  
-  retval <- data.table(
-    outcome=OUTCOME,
-    modeltype=stack$model[i],
-    form=FORM,
-    aic_3_minus_linear=RAWmisc::Format(aic_3-aic_linear),
-    aic_4_minus_linear=RAWmisc::Format(aic_4-aic_linear),
-    est_together_1_unit=sprintf("%s (%s, %s)",
-                                RAWmisc::Format(exp(est_together_1)),
-                                RAWmisc::Format(exp(l_together_1)),
-                                RAWmisc::Format(exp(u_together_1))
-    ),
-    est_together_p75_unit=sprintf("%s (%s, %s)",
-                                RAWmisc::Format(exp(est_together_p75)),
-                                RAWmisc::Format(exp(l_together_p75)),
-                                RAWmisc::Format(exp(u_together_p75))
-    ),
-    pval_adj=directPval,
-    lrtest_pval_adj=rms::lrtest(modelResults[["formula0adj"]],modelResults[["formula1adj"]])$stats[["P"]],
-    C_est_together_1_unit=sprintf("%s (%s, %s)",
-                                RAWmisc::Format(exp(C_est_together_1)),
-                                RAWmisc::Format(exp(C_l_together_1)),
-                                RAWmisc::Format(exp(C_u_together_1))
-    ),
-    C_est_together_p75_unit=sprintf("%s (%s, %s)",
-                                  RAWmisc::Format(exp(C_est_together_p75)),
-                                  RAWmisc::Format(exp(C_l_together_p75)),
-                                  RAWmisc::Format(exp(C_u_together_p75))
-    ),
-    C_pval_adj=C_directPval,
-    C_lrtest_pval_adj=rms::lrtest(modelResults[["formula0adj_CRUDE"]],modelResults[["formula1adj_CRUDE"]])$stats[["P"]]
-  )
-  
-  res[[i]] <- retval
-  
-}
-
-res <- rbindlist(res)
-
-res[,C_pval_adj:=RAWmisc::Format(C_pval_adj,digits=3)]
-res[,sig:=""]
-res[C_pval_adj<="0.050",sig:="*"]
-res[C_pval_adj=="0.000",C_pval_adj:="<0.001"]
-res[,C_pval_adj:=sprintf("%s%s",C_pval_adj,sig)]
-res[,sig:=NULL]
-
-res[,C_lrtest_pval_adj:=RAWmisc::Format(C_lrtest_pval_adj,digits=3)]
-res[,sig:=""]
-res[C_lrtest_pval_adj<="0.050",sig:="*"]
-res[C_lrtest_pval_adj=="0.000",C_lrtest_pval_adj:="<0.001"]
-res[,C_lrtest_pval_adj:=sprintf("%s%s",C_lrtest_pval_adj,sig)]
-res[,sig:=NULL]
-
-res[,pval_adj:=RAWmisc::Format(pval_adj,digits=3)]
-res[,sig:=""]
-res[pval_adj<="0.050",sig:="*"]
-res[pval_adj=="0.000",pval_adj:="<0.001"]
-res[,pval_adj:=sprintf("%s%s",pval_adj,sig)]
-res[,sig:=NULL]
-
-res[,lrtest_pval_adj:=RAWmisc::Format(lrtest_pval_adj,digits=3)]
-res[,sig:=""]
-res[lrtest_pval_adj<="0.050",sig:="*"]
-res[lrtest_pval_adj=="0.000",lrtest_pval_adj:="<0.001"]
-res[,lrtest_pval_adj:=sprintf("%s%s",lrtest_pval_adj,sig)]
-res[,sig:=NULL]
-
-res
-
-table2 <- res[,c(
-  "outcome",
-  "modeltype",
-  "form",
-  "aic_3_minus_linear",
-  "aic_4_minus_linear"
-)]
-
-openxlsx::write.xlsx(table2, file=file.path(
-  RAWmisc::PROJ$SHARED_TODAY,"tables","table2_aic.xlsx"
-))
-
-############
-
-table3 <- res[,c(
-  "form","outcome","est_together_1_unit","est_together_p75_unit","pval_adj","lrtest_pval_adj"
-)]
-table3[outcome %in% c("Midwife_ObGyn_phone_visits_CA","Hospital_admission_CA"),est_together_1_unit:="-"]
-table3[outcome %in% c("Midwife_ObGyn_phone_visits_CA","Hospital_admission_CA"),pval_adj:="-"]
-
-openxlsx::write.xlsx(table3, file=file.path(
-  RAWmisc::PROJ$SHARED_TODAY,"tables","adj_table3_main_effect.xlsx"
-))
-
-table3 <- res[,c(
-  "form","outcome","C_est_together_1_unit","C_est_together_p75_unit","C_pval_adj","C_lrtest_pval_adj"
-)]
-table3[outcome %in% c("Midwife_ObGyn_phone_visits_CA","Hospital_admission_CA"),C_est_together_1_unit:="-"]
-table3[outcome %in% c("Midwife_ObGyn_phone_visits_CA","Hospital_admission_CA"),C_pval_adj:="-"]
-
-openxlsx::write.xlsx(table3, file=file.path(
-  RAWmisc::PROJ$SHARED_TODAY,"tables","crude_table3_main_effect.xlsx"
-))
