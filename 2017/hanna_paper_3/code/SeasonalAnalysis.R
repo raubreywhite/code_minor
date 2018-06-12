@@ -258,8 +258,10 @@ SeasonalAnalysis <- function(){
       ggsave(filename,plot=q,width=297,height=210, units="mm")
     }
     
-    q <- ggplot(as.data.frame(data[!IF %in% c("zscorePG","zscorePP")]), aes(x=date,y=y,group=IF))
-    q <- q + geom_line(data=data[!IF %in% c("zscorePG","zscorePP")])
+    plotData <- data[!IF %in% c("zscorePG","zscorePP") & Depressed!="Depressed"]
+    plotData[Depressed=="Not-depressed",Depressed:="No depressive symptoms"]
+    q <- ggplot(plotData, aes(x=date,y=y,group=IF))
+    q <- q + geom_line()
     #q <- q + expand_limits(x=as.Date("2016-08-01"))
     #q <- q + scale_colour_manual("",values=c("#e41a1c", "#377eb8", "#4daf4a", "#ff7f00", "#f781bf"))
     #q <- q + scale_colour_brewer("",palette="Set2")
@@ -295,9 +297,12 @@ SeasonalAnalysis <- function(){
     data[pbonf<0.05 & stringr::str_detect(IF,"_pg$"),labels:="Significant PG"]
     data[pbonf<0.05 & stringr::str_detect(IF,"_pp$"),labels:="Significant PP"]
     
-    q <- ggplot(as.data.frame(data[!IF %in% c("zscorePG","zscorePP")]), aes(x=date,y=y,group=IF,colour=labels))
-    q <- q + geom_line(data=data[labels %in% c("Not significant PG","Not significant PP") & !IF %in% c("zscorePG","zscorePP")],mapping=aes(colour=labels),lwd=0.25,alpha=0.5)
-    q <- q + geom_line(data=data[!labels %in% c("Not significant PG","Not significant PP") & !IF %in% c("zscorePG","zscorePP")],mapping=aes(colour=labels))
+    plotData <- data[!IF %in% c("zscorePG","zscorePP") & Depressed!="Depressed"]
+    plotData[Depressed=="Not-depressed",Depressed:="No depressive symptoms"]
+    
+    q <- ggplot(as.data.frame(plotData[!IF %in% c("zscorePG","zscorePP")]), aes(x=date,y=y,group=IF,colour=labels))
+    q <- q + geom_line(data=plotData[labels %in% c("Not significant PG","Not significant PP") & !IF %in% c("zscorePG","zscorePP")],mapping=aes(colour=labels),lwd=0.25,alpha=0.5)
+    q <- q + geom_line(data=plotData[!labels %in% c("Not significant PG","Not significant PP") & !IF %in% c("zscorePG","zscorePP")],mapping=aes(colour=labels))
     #q <- q + expand_limits(x=as.Date("2016-08-01"))
     q <- q + scale_colour_manual("",values=c("black", "#377eb8", "#4daf4a", "#ff7f00", "#f781bf"))
     #q <- q + scale_colour_brewer("",palette="Set2")
