@@ -1,25 +1,21 @@
-#devtools::install_github("raubreywhite/RAWmisc")
+RAWmisc::InitialiseOpinionatedUnix("code_minor/2017/hanna_paper_elin/")
 
-RAWmisc::InitialiseProject(
-  HOME = "/git/code_minor/hanna_paper_elin/",
-  RAW = "/analyses/data_raw/hanna_paper_elin/",
-  CLEAN = "/analyses/data_clean/hanna_paper_elin",
-  BAKED = "/analyses/results_baked/hanna_paper_elin/",
-  FINAL = "/analyses/results_final/hanna_paper_elin/",
-  SHARED = "/dropbox/results_shared/hanna_paper_elin/")
-
-suppressWarnings(suppressMessages(library(data.table)))
-suppressWarnings(suppressMessages(library(ggplot2)))
-suppressWarnings(suppressMessages(library(tidyr)))
-suppressWarnings(suppressMessages(library(magrittr)))
-suppressWarnings(suppressMessages(library(pomp)))
+library(data.table)
+library(magrittr)
+library(tidyr)
 
 assign("RUN_ALL", TRUE, envir=globalenv())
 
-unlink(RAWmisc::PROJ$SHARED_TODAY, recursive=TRUE, force=TRUE)
-dir.create(RAWmisc::PROJ$SHARED_TODAY)
+#CustomDataR   zscorePG
+#1:          10 -0.1480937
+#2:          13  1.2092408
+#3:          31  0.6577556
 
-CleanData()
+d <- CleanData()
+d1 <- haven::read_sav(file.path(RAWmisc::PROJ$RAW,"IM preg_depr_ae.sav"))
+setDT(d1)
+d[CustomDataR==10]
+d1[KOD=="10",]
 
 a <- readxl::read_excel(file.path(RAWmisc::PROJ$BAKED,"data_inflammation_factors.xlsx"))
 a$im_152_PDL1[a$CustomDataR==631]

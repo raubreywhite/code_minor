@@ -28,6 +28,29 @@ library(ggplot2)
 CleanData()
 ls()
 
+length(pg_ims)
+length(pp_ims)
+
+x <- readxl::read_excel("/dropbox/analyses/results_shared/code_minor/2017/hanna_paper_elin/2018-06-21/data_inflammation_factors.xlsx")
+setnames(x,"zscorePG","zscoreNEWPG")
+setnames(x,"zscorePP","zscoreNEWPP")
+
+y <- merge(pg[,c("CustomDataR","zscorePG","im_sample_day_preg")],x[,c("CustomDataR","zscoreNEWPG")],by="CustomDataR")
+plot(y$zscorePG~y$zscoreNEWPG)
+cor(y$zscorePG,y$zscoreNEWPG)
+
+png(file.path(RAWmisc::PROJ$SHARED_TODAY,"lomb_scargle_periodogram_pg.png"),width=1000,height=600)
+lomb::lsp(as.matrix(na.omit(y[,c("im_sample_day_preg","zscoreNEWPG")])),type="period",from=30,to=500, ofac=20,alpha=0.05)
+dev.off()
+
+y <- merge(pp[,c("CustomDataR","zscorePP","im_sample_day_pp")],x[,c("CustomDataR","zscoreNEWPP")],by="CustomDataR")
+plot(y$zscorePP~y$zscoreNEWPP)
+cor(y$zscorePP,y$zscoreNEWPP)
+
+png(file.path(RAWmisc::PROJ$SHARED_TODAY,"lomb_scargle_periodogram_pp.png"),width=1000,height=600)
+lomb::lsp(as.matrix(na.omit(y[,c("im_sample_day_pp","zscoreNEWPP")])),type="period",from=30,to=500, ofac=20,alpha=0.05)
+dev.off()
+
 SeasonalAnalysis()
 SeasonalAnalysisWithInteraction()
 SeasonalAdjustedIMPredictingDepression()

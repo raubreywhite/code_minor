@@ -125,6 +125,10 @@ CleanData <- function(){
   pg_ims <- pg_ims[pg_pcUnderLOD<0.25]
   pp_ims <- pp_ims[pp_pcUnderLOD<0.25]
   
+  # REMOVING BDNF BC IT IS NOT GOOD
+  pg_ims <- pg_ims[pg_ims!="103_BDNF_pg"]
+  pp_ims <- pp_ims[pp_ims!="103_BDNF_pp"]
+  
   pg_ims <- c(paste0("im_log2_",pg_ims),pg_outcome_zscore)
   pp_ims <- c(paste0("im_log2_",pp_ims),pp_outcome_zscore)
   

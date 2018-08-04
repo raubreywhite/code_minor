@@ -2,7 +2,7 @@
 CleanDataInger <- function(){
   d <- CleanData()
   
-  file <- "data_raw/InflammationsfilAsaArbetsfil.sav"
+  file <- file.path(RAWmisc::PROJ$RAW,"InflammationsfilAsaArbetsfil.sav")
   #masterData <- foreign::read.spss(file, to.data.frame=TRUE)
   masterData <- haven::read_spss(file)
   dim(masterData)

@@ -1,4 +1,4 @@
-RAWmisc::Initialise()
+RAWmisc::InitialiseOpinionatedUnix("code_minor/2016/inflammation")
 
 library(data.table)
 library(Hmisc)
@@ -20,7 +20,7 @@ SMAOpng <- function (file = "Figure.png", w = 1, h = 1, landscape = TRUE)
 }
 
 d <- CleanDataInger()
-write.table(data.frame(d$ID,d$IF),"inger_if.csv",row.names=FALSE,dec=",",sep=";")
+write.table(data.frame(d$ID,d$IF),file.path(RAWmisc::PROJ$CLEAN,"inger_if.csv"),row.names=FALSE,dec=",",sep=";")
 
 res <- data.frame(IF=names(d$IF),stringsAsFactors=FALSE)
 res$multinomPval <- 100

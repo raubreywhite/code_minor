@@ -1,12 +1,4 @@
-RAWmisc::AllowFileManipulationFromInitialiseProject()
-
-RAWmisc::InitialiseProject(
-  HOME = "/git/code_minor/2017/inflammation_data/",
-  RAW = "/analyses/data_raw/code_minor/2017/inflammation_data/",
-  CLEAN = "/analyses/data_clean/code_minor/2017/inflammation_data",
-  BAKED = "/analyses/results_baked/code_minor/2017/inflammation_data/",
-  FINAL = "/analyses/results_final/code_minor/2017/inflammation_data/",
-  SHARED = "/dropbox/results_shared/code_minor/2017/inflammation_data/")
+RAWmisc::InitialiseOpinionatedUnix("code_minor/2017/inflammation_data")
 
 dir.create(RAWmisc::PROJ$SHARED_TODAY)
 
@@ -52,8 +44,30 @@ ifs[,IF:=stringr::str_replace_all(IF,"-","_")]
 ifs[,lod:=NULL]
 ifs[,val:=log2(val)]
 
+goodIFs <- ifs[,.(percUnderLOD=mean(underLOD,na.rm=T)),by=.(IF,tail)]
+goodIFs <- goodIFs[percUnderLOD<0.5]
+goodIFs[,percUnderLOD:=NULL]
+
 ifs[,imNum:=NULL]
 setnames(ifs,"val","im_log2")
+
+ifs[,zscore:=(im_log2-mean(im_log2))/sd(im_log2),by=.(IF,tail)]
+zs <- merge(ifs,goodIFs,by=c("IF","tail"))
+zs <- zs[,.(im_log2=median(zscore,na.rm=T)),by=.(CustomDataR,tail)]
+zs[,im_log2:=(im_log2-mean(im_log2))/sd(im_log2),by=.(tail)]
+zs[,IF:="zscore"]
+zs[,underLOD:=0]
+ifs[,zscore:=NULL]
+
+setorder(zs,CustomDataR)
+zs
+
+#CustomDataR   zscorePG
+#1:          10 -0.1480937
+#2:          13  1.2092408
+#3:          31  0.6577556
+
+ifs <- rbind(ifs,zs)
 ifs <- dcast.data.table(ifs,CustomDataR~IF+tail,value.var=c("im_log2","underLOD"))
 
 dim(ifs)
@@ -61,6 +75,32 @@ dim(ifs)
 saveRDS(ifs,file=file.path(RAWmisc::PROJ$CLEAN,"inflammation_markers_log2_with_lod_sqrt2.RDS"))
 openxlsx::write.xlsx(ifs,file=file.path(RAWmisc::PROJ$SHARED_TODAY,"inflammation_markers_log2_with_lod_sqrt2.xlsx"))
 
+d1 <- haven::read_sav(file.path(RAWmisc::PROJ$RAW,"IM preg_depr_ae.sav"))
+setDT(d1)
+ifs[CustomDataR==10]
+as.numeric(d1[KOD=="10",]$CSF1r/d1[KOD=="10",]$CSF1)
+as.numeric(d1[KOD=="10",]$CXCL6r/d1[KOD=="10",]$CXCL6)
+as.numeric(d1[KOD=="10",]$IL15RAr/d1[KOD=="10",]$IL15RA)
+as.numeric(d1[KOD=="10",]$TWEAKr/d1[KOD=="10",]$TWEAK)
 
-sum(!is.na(ifs$im_log2_101_IL_8_pg))+sum(!is.na(ifs$im_log2_101_IL_8_pp))
+ifs[CustomDataR==10]$im_log2_189_TWEAK_pp
+d1[KOD=="10",]$TWEAKr
+d1[KOD=="10",]$TWEAK
+
+x <- merge(ifs[,c("CustomDataR","im_log2_189_TWEAK_pg")],d1[,c("KOD","TWEAKr")],by.x="CustomDataR",by.y="KOD")
+x[,g:=im_log2_189_TWEAK_pg/TWEAKr]
+cor(x$im_log2_189_TWEAK_pg,x$TWEAKr, use="pairwise.complete.obs")
+
+x <- merge(ifs[,c("CustomDataR","im_log2_152_PD_L1_pg")],d1[,c("KOD","TNFRSF9")],by.x="CustomDataR",by.y="KOD")
+cor(x$im_log2_152_PD_L1_pg,x$TNFRSF9, use="pairwise.complete.obs")
+
+f <- names(d1)[4:80]
+for(i in f){
+  nameA <- i
+  nameB <- paste0(i,"r")
+  print(i)
+  print(sum(is.na(d1[[nameA]])))
+  print(sum(is.na(d1[[nameB]])))
+}
+
 

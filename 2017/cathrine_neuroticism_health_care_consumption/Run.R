@@ -64,6 +64,18 @@ nrow(d)
 
 d[,Base_prog_CA:=abs(Base_prog_CA-1)]
 
+d[,Emergency_Obgyn_physician_count_CA:=
+    Läkare_tid.blödning+
+    Läkare_sen.blödning+
+    Läkare_hyperemesis+
+    Läkare_PE_HT+
+    Läkare_prem.sammandragningar+
+    Läkare_minskade_fosterrörelser+
+    Läkare_buksmärta+
+    Läkare_misst_vattenavgång+
+    Läkare_oro_sömnsvårighet
+    ]
+
 OUTCOMES_RECODE_TO_BINARY <- c(
                                "Läkare_tid.blödning",
                                "Läkare_PE_HT",
@@ -95,15 +107,15 @@ OUTCOMES_BINARY <- c(
   "Obstetrician_fetal_movements_D",
   "Obstetrician_contractions_D",
   "Elective_CS_CA",
-  "Induction_CA",
-  OUTCOMES_RECODE_TO_BINARY
+  "Induction_CA"
 )
 
 OUTCOMES_CONTINUOUS <- c(
   "Obgyn_physician_count_CA",
   "Midwife_ObGyn_phone_visits_CA",
   "Maternal_care_midwife_CA",
-  "Ultrasounds_count_CA"
+  "Ultrasounds_count_CA",
+  "Emergency_Obgyn_physician_count_CA"
 )
 #"Läkare_duplex",
 #"Läkare_DIAB",
@@ -134,7 +146,22 @@ for(i in c(
 }
 
 p25 <- quantile(d[[EXPOSURE]],prob=0.25,na.rm=T)
-d[["IQR_Neuroticism_CA"]] <- (d[["Neuroticism_CA"]]-p25)/IQR(d[["Neuroticism_CA"]])
+iqr <- IQR(d[["Neuroticism_CA"]])
+d[["IQR_Neuroticism_CA"]] <- (d[["Neuroticism_CA"]]-p25)/iqr
+
+probsOfInterest <- seq(0.05,0.95,0.05)
+probsOfInterest <- probsOfInterest[probsOfInterest!=0.25]
+graphExposureLocationsLinear <- quantile(d[[EXPOSURE]],prob=probsOfInterest,na.rm=T)
+graphExposureLocationsSpline <- c(quantile(d[[EXPOSURE]],prob=probsOfInterest,na.rm=T))
+
+graphExposureLocationsLinearLabels <- quantile(d[[EXPOSURE]],prob=c(0.1,0.5,0.75,0.9),na.rm=T)
+graphExposureLocationsSplineLabels <- quantile(d[[EXPOSURE]],prob=c(0.1,0.5,0.75,0.9),na.rm=T)
+
+graphExposureLocationsLinear <- (graphExposureLocationsLinear-p25)/iqr
+graphExposureLocationsSpline <- (graphExposureLocationsSpline-p25)/iqr
+
+graphExposureLocationsLinearLabels <- (graphExposureLocationsLinearLabels-p25)/iqr
+graphExposureLocationsSplineLabels <- (graphExposureLocationsSplineLabels-p25)/iqr
 
 Table1()
 
@@ -163,6 +190,29 @@ stack_spline_with_graviditetsar$exposure <- "splines::ns(IQR_Neuroticism_CA,df=4
 
 stack_spline_without_graviditetsar <- copy(stack_linear_without_graviditetsar)
 stack_spline_without_graviditetsar$exposure <- "splines::ns(IQR_Neuroticism_CA,df=4)"
+
+
+# adding in necessary parts for graphs
+
+stack_linear_without_graviditetsar$graphExposureScaleMultiply <- iqr
+stack_linear_without_graviditetsar$graphExposureScaleAdd <- p25
+stack_linear_without_graviditetsar$graphReference <- 0
+stack_linear_without_graviditetsar$graphExposureLocationsLabels <- list(graphExposureLocationsLinearLabels)
+stack_linear_without_graviditetsar$graphExposureLocations <- list(graphExposureLocationsLinear)
+stack_linear_without_graviditetsar$graphTitleMain <- ""#stack_linear_without_graviditetsar$outcome
+stack_linear_without_graviditetsar$graphTitleX <- "Neuroticism"
+stack_linear_without_graviditetsar$graphFileName <- sprintf("%s/figures/linear_%s_without_graviditetsar.png",RAWmisc::PROJ$SHARED_TODAY,stack_linear_without_graviditetsar$outcome)
+
+stack_spline_without_graviditetsar$graphExposureScaleMultiply <- iqr
+stack_spline_without_graviditetsar$graphExposureScaleAdd <- p25
+stack_spline_without_graviditetsar$graphReference <- 0
+stack_spline_without_graviditetsar$graphExposureLocationsLabels <- list(graphExposureLocationsSplineLabels)
+stack_spline_without_graviditetsar$graphExposureLocations <- list(graphExposureLocationsSpline)
+stack_spline_without_graviditetsar$graphTitleMain <- ""#stack_spline_without_graviditetsar$outcome
+stack_spline_without_graviditetsar$graphTitleX <- "Neuroticism"
+stack_spline_without_graviditetsar$graphFileName <- sprintf("%s/figures/spline_%s_without_graviditetsar.png",RAWmisc::PROJ$SHARED_TODAY,stack_spline_without_graviditetsar$outcome)
+# fin
+
 
 retval <- list()
 for(stack_name in c(
@@ -222,6 +272,7 @@ for(stack_name in c(
 stack_interaction <- stack_linear_without_graviditetsar[stack_linear_without_graviditetsar$outcome=="Prenatal_diagnostics_CA",]
 stack_interaction$confounders[[1]] <- c(stack_interaction$confounders[[1]],stack_interaction$exposure[[1]])
 stack_interaction$exposure[[1]] <- "IQR_Neuroticism_CA:Age_3_CA"
+stack_interaction$graphFileName <- NA
 
 retval <- vector("list",length=nrow(stack_interaction))
 for(i in 1:length(retval)){

@@ -1,23 +1,4 @@
-if(.Platform$OS.type=="unix"){
-  RAWmisc::UseRClone()
-  RAWmisc::AllowFileManipulationFromInitialiseProject()
-  
-  if(length(list.files("/dropbox"))>0){
-    SHARED <- "/dropbox/analyses/results_shared/code_minor/2017/emma_depression_pp_if/"
-    RCLONE_SHARED <- NULL
-  } else {
-    SHARED <- "/tmp/results_shared/code_minor/2017/emma_depression_pp_if/"
-    RCLONE_SHARED <- "data:/analyses/results_shared/code_minor/2017/emma_depression_pp_if/"
-  }
-  
-  RAWmisc::InitialiseProject(
-    HOME = "/git/code_minor/2017/emma_depression_pp_if/",
-    RAW = "/tmp/data_raw/code_minor/2017/emma_depression_pp_if/",
-    SHARED = SHARED,
-    RCLONE_RAW = "crypt:/data_raw/code_minor/2017/emma_depression_pp_if/",
-    RCLONE_SHARED = RCLONE_SHARED
-  )
-}
+RAWmisc::InitialiseOpinionatedUnix("code_minor/2017/emma_depression_pp_if/")
 
 library(data.table)
 library(ggplot2)
@@ -43,6 +24,13 @@ d$AvsB[d$sensitivity_analysis_groups==3] <- NA
 
 # clean exposures
 IFs <- names(d)[36:106]
+# remove im_log2_103_BDNF_pp and im_log2_103_BDNF_ALL
+length(IFs)
+IFs <- IFs[IFs!="im_log2_103_BDNF_pp"]
+IFs <- IFs[IFs!="im_log2_103_BDNF_ALL"]
+IFs <- IFs[IFs!="im_log2_103_BDNF_pg"]
+length(IFs)
+sum(stringr::str_detect(IFs,"BDNF"))
 
 # clean confounders
 d[,breastfeeding_6vpp:=(breastfeeding_6vpp-1)/2]

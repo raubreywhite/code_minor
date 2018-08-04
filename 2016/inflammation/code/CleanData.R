@@ -1,19 +1,20 @@
 
 CleanData <- function(){
   #file <- system.file("extdata","Date discrepancies with CS 160115.txt",package="inflammation")
-  file <- file.path(RPROJ$PROJRAW,"Date discrepancies with CS 160115.txt")
+  file <- file.path(RAWmisc::PROJ$RAW,"Date discrepancies with CS 160115.txt")
   lengthPregnancies <-data.frame(fread(file))
   names(lengthPregnancies)[1] <- "CustomDataR"
   
   #file <- system.file("extdata","data.sav",package="inflammation")
-  file <- file.path(RPROJ$PROJRAW,"data.sav")
-  masterData <- foreign::read.spss(file, to.data.frame=TRUE)
+  file <- file.path(RAWmisc::PROJ$RAW,"data.sav")
+  masterData <- haven::read_spss(file)
   masterData$Medicines_same_day_pregnancy_gr[is.na(masterData$Medicines_same_day_pregnancy_gr)] <- "other"
   masterData$Medicines_same_day_pp_gr[is.na(masterData$Medicines_same_day_pp_gr)] <- 0
 
   data <- masterData
   nrow(data)
   dim(data)
+  setDT(data)
   data <- merge(data,lengthPregnancies,by="CustomDataR")
   dim(data)
   data$Outcome_new <- as.character(data$Outcome_new)
@@ -28,7 +29,7 @@ CleanData <- function(){
   data$c_twin <- NA
   data$c_twin[!is.na(data$Twin)] <- FALSE
   data$c_twin[!is.na(data$c_twin) & data$Twin=="twin"] <- TRUE
-  label(data$c_twin) <- "Twin"
+  #label(data$c_twin) <- "Twin"
   
   # Smoking
   table(data$ppv6_smoking, exclude=NULL)
@@ -41,14 +42,18 @@ CleanData <- function(){
     "c_smokerPP" = c(
       1,
       0
-    )
+    ),stringsAsFactors=F
   )
+  #recode_c_smoker$ppv6_smoking <- factor(recode_c_smoker$ppv6_smoking,levels=c("Yes","No"))
   
-  label(recode_c_smoker$c_smokerPP) <- c("Smoker PP")
+  #label(recode_c_smoker$c_smokerPP) <- c("Smoker PP")
   
   table(data$ppv6_smoking, exclude=NULL)
+  
   dim(data)
-  data <- merge(data,recode_c_smoker, by="ppv6_smoking", all.x=TRUE)
+  setDT(data)
+  #data <- merge(data,recode_c_smoker, by="ppv6_smoking", all.x=TRUE)
+  data[,c_smokerPP:=2-ppv6_smoking]
   dim(data)
   table(data$ppv6_smoking, exclude=NULL)
   table(data$c_smokerPP, exclude=NULL)
@@ -63,14 +68,15 @@ CleanData <- function(){
     "c_smokerPG" = c(
       1,
       0
-    )
+    ),stringsAsFactors=F
   )
   
-  label(recode_c_smoker$c_smokerPG) <- c("Smoker PG")
+  #label(recode_c_smoker$c_smokerPG) <- c("Smoker PG")
   
   table(data$Smoking_preg, exclude=NULL)
   dim(data)
-  data <- merge(data,recode_c_smoker, by="Smoking_preg", all.x=TRUE)
+  #data <- merge(data,recode_c_smoker, by="Smoking_preg", all.x=TRUE)
+  data[,c_smokerPG:=2-Smoking_preg]
   dim(data)
   table(data$Smoking_preg, exclude=NULL)
   table(data$c_smokerPG, exclude=NULL)
@@ -163,19 +169,19 @@ CleanData <- function(){
   
   
   levels(recode_o_pp_sensitive$o_pp_sensitive_1) <- c("Control","Case")
-  label(recode_o_pp_sensitive$o_pp_sensitive_1) <- c("-- vs -+ (EPDS or MINI)")
+  #label(recode_o_pp_sensitive$o_pp_sensitive_1) <- c("-- vs -+ (EPDS or MINI)")
   
   levels(recode_o_pp_sensitive$o_pp_sensitive_2) <- c("Control","Case")
-  label(recode_o_pp_sensitive$o_pp_sensitive_2) <- c("x- vs x+ (EPDS or MINI)")
+  #label(recode_o_pp_sensitive$o_pp_sensitive_2) <- c("x- vs x+ (EPDS or MINI)")
   
   levels(recode_o_pp_sensitive$o_pp_sensitive_3) <- c("Control","Case")
-  label(recode_o_pp_sensitive$o_pp_sensitive_3) <- c("-x vs +x (EPDS or MINI)")
+  #label(recode_o_pp_sensitive$o_pp_sensitive_3) <- c("-x vs +x (EPDS or MINI)")
   
   levels(recode_o_pp_sensitive$o_pp_sensitive_4) <- c("Control","Case")
-  label(recode_o_pp_sensitive$o_pp_sensitive_4) <- c("-- vs x+ (EPDS or MINI)")
+  #label(recode_o_pp_sensitive$o_pp_sensitive_4) <- c("-- vs x+ (EPDS or MINI)")
   
   levels(recode_o_pp_sensitive$o_pp_sensitive_5) <- c("Control","Case")
-  label(recode_o_pp_sensitive$o_pp_sensitive_5) <- c("-- vs +x (EPDS or MINI)")
+  #label(recode_o_pp_sensitive$o_pp_sensitive_5) <- c("-- vs +x (EPDS or MINI)")
   
   data$Outcome_new <- gsub(" ","",as.character(data$Outcome_new))
   recode_o_pp_sensitive$Outcome_new <- as.character(recode_o_pp_sensitive$Outcome_new)
@@ -208,29 +214,29 @@ CleanData <- function(){
   data$c_fastingAtSample <- NA
   data$c_fastingAtSample[data$fasting_at_sampling==0] <- FALSE
   data$c_fastingAtSample[data$fasting_at_sampling==1] <- TRUE
-  label(data$c_fastingAtSample) <- "Fasting at sample"
+  #label(data$c_fastingAtSample) <- "Fasting at sample"
   
   # baby sex
   xtabs(~data$F_kon)
   data$c_babyMale <- NA
   data$c_babyMale[data$F_kon=="Girl"] <- FALSE
   data$c_babyMale[data$F_kon=="Boy"] <- TRUE
-  label(data$c_babyMale) <- "Child is male"
+  #label(data$c_babyMale) <- "Child is male"
   
   # pregnancy length
   data$c_lengthPG <- data$PregnSampl_to_Partus_days
-  label(data$c_lengthPG) <- "Days to partus"
+  #label(data$c_lengthPG) <- "Days to partus"
   
   # pregnancy length
   data$c_lengthPP <- data$Days_from_partus_until_sampling_pp
-  label(data$c_lengthPP) <- "Days after delivery"
+  #label(data$c_lengthPP) <- "Days after delivery"
   
   # Age
   
   data$c_age <- data$B_age
-  label(data$c_age) <- "Age (years)"
+  #label(data$c_age) <- "Age (years)"
   data$c_ageCat <- cut(data$c_age, breaks=c(0,30,35,100),labels=c("<=30","31-35","36+"))
-  label(data$c_ageCat) <- "Age (years)"
+  #label(data$c_ageCat) <- "Age (years)"
   
   # Parity
   table(data$F_parity)
@@ -239,24 +245,24 @@ CleanData <- function(){
   data$c_firstBorn <- NA
   data$c_firstBorn[data$c_parity==0 & !is.na(data$c_parity)] <- 1
   data$c_firstBorn[data$c_parity>0 & !is.na(data$c_parity)] <- 0
-  label(data$c_firstBorn) <- "First born"
+  #label(data$c_firstBorn) <- "First born"
   
   data$c_parity <- cut(data$c_parity, breaks=c(0,1,2,10), right=FALSE, labels=c("0","1","2+"))
-  label(data$c_parity) <- "Parity"
+  #label(data$c_parity) <- "Parity"
   
   # Prepregnancy BMI
   summary(data$v17_BMI_before)
   data$c_preBMIcont <- data$v17_BMI_before
-  label(data$c_preBMIcont) <- "Prepregnancy BMI"
+  #label(data$c_preBMIcont) <- "Prepregnancy BMI"
   data$c_preBMI <- data$v17_BMI_before
   data$c_preBMI <- cut(data$c_preBMI, breaks=c(0,18.5, 25, 35, 100), right=FALSE, labels=c("<18.50", "18.50-24.99","25.00-34.99","35.00+"))
-  label(data$c_preBMI) <- "Prepregnancy BMI"
+  #label(data$c_preBMI) <- "Prepregnancy BMI"
   data$c_preBMIOrdered <- factor(data$c_preBMI, levels=c("18.50-24.99","25.00-34.99","35.00+","<18.50"))
-  label(data$c_preBMIOrdered) <- "Prepregnancy BMI"
+  #label(data$c_preBMIOrdered) <- "Prepregnancy BMI"
   data$c_abnormalBMI <- data$c_preBMI
   levels(data$c_abnormalBMI) <- c("1","0","1","1")
   data$c_abnormalBMI <- as.numeric(as.character(data$c_abnormalBMI))
-  label(data$c_abnormalBMI) <- "Prepregnancy BMI outside of 18.50-24.99"
+  #label(data$c_abnormalBMI) <- "Prepregnancy BMI outside of 18.50-24.99"
   
 
   # Education
@@ -273,12 +279,13 @@ CleanData <- function(){
     )
   )
   
-  label(recode_c_educ$c_educ) <- c("More than high school education")
+  #label(recode_c_educ$c_educ) <- c("More than high school education")
   recode_c_educ
   
   table(data$v17_education_R, exclude=NULL)
   dim(data)
-  data <- merge(data,recode_c_educ, by="v17_education_R", all.x=TRUE)
+  #data <- merge(data,recode_c_educ, by="v17_education_R", all.x=TRUE)
+  data[,c_educ:=1-v17_education_R]
   dim(data)
   table(data$v17_education_R, exclude=NULL)
   table(data$c_educ, exclude=NULL)
@@ -305,11 +312,12 @@ CleanData <- function(){
     )
   )
   
-  label(recode_c_participation$c_participationType) <- c("Participation type")
+  #label(recode_c_participation$c_participationType) <- c("Participation type")
   recode_c_participation$c_participationType <- factor(recode_c_participation$c_participationType)
   levels(recode_c_participation$c_participationType) <- c("Preg", "Preg+PP", "PP", "CS", "PP+CS", "Preg+CS")
   recode_c_participation
   
+  data$Participation_type <- haven::as_factor(data$Participation_type)
   table(data$Participation_type, exclude=NULL)
   dim(data)
   data <- merge(data,recode_c_participation, by="Participation_type", all.x=TRUE)
@@ -320,66 +328,68 @@ CleanData <- function(){
   # medicines pp
   #data$Medicines_same_day_pp_gr
 
+  
   data$c_medPPNSAID <- NA
   data$c_medPPNSAID[!is.na(data$Medicines_same_day_pp_gr)] <- FALSE
   data$c_medPPNSAID[grep("2",data$Medicines_same_day_pp_gr)] <- TRUE
-  label(data$c_medPPNSAID) <- "Post-partum NSAID"
+  #label(data$c_medPPNSAID) <- "Post-partum NSAID"
   
   data$c_medPPAntibiotics <- NA
   data$c_medPPAntibiotics[!is.na(data$Medicines_same_day_pp_gr)] <- FALSE
   data$c_medPPAntibiotics[grep("6",data$Medicines_same_day_pp_gr)] <- TRUE
-  label(data$c_medPPAntibiotics) <- "Post-partum antibiotics"
+  #label(data$c_medPPAntibiotics) <- "Post-partum antibiotics"
 
   data$c_medPPParacetamol <- NA
   data$c_medPPParacetamol[!is.na(data$Medicines_same_day_pp_gr)] <- FALSE
   data$c_medPPParacetamol[grep("8",data$Medicines_same_day_pp_gr)] <- TRUE
-  label(data$c_medPPParacetamol) <- "Post-partum paracetamol"
+  #label(data$c_medPPParacetamol) <- "Post-partum paracetamol"
   
   #Medicines_same_day_pregnancy_gr
   levels(data$Medicines_same_day_pregnancy_gr)
   data$c_medPGNSAID <- NA
   data$c_medPGNSAID[!is.na(data$Medicines_same_day_pregnancy_gr)] <- FALSE
   data$c_medPGNSAID[grep("NSAID",data$Medicines_same_day_pregnancy_gr)] <- TRUE
-  label(data$c_medPGNSAID) <- "Pregnancy NSAID"
+  #label(data$c_medPGNSAID) <- "Pregnancy NSAID"
   
   data$c_medPGAntibiotics <- NA
   data$c_medPGAntibiotics[!is.na(data$Medicines_same_day_pregnancy_gr)] <- FALSE
-  data$c_medPGAntibiotics[grep("antibiotics",data$Medicines_same_day_pregnancy_gr)] <- TRUE
-  label(data$c_medPGAntibiotics) <- "Pregnancy antibiotics"
+  data$c_medPGAntibiotics[grep("6",data$Medicines_same_day_pregnancy_gr)] <- TRUE
+  #label(data$c_medPGAntibiotics) <- "Pregnancy antibiotics"
   
   data$c_medPGParacetamol <- NA
   data$c_medPGParacetamol[!is.na(data$Medicines_same_day_pregnancy_gr)] <- FALSE
-  data$c_medPGParacetamol[grep("paracetamol",data$Medicines_same_day_pregnancy_gr)] <- TRUE
-  label(data$c_medPGParacetamol) <- "Pregnancy paracetamol"
+  data$c_medPGParacetamol[grep("8",data$Medicines_same_day_pregnancy_gr)] <- TRUE
+  #label(data$c_medPGParacetamol) <- "Pregnancy paracetamol"
   
   # chronic diseases
   data$c_chronicInflam <- NA
   data$c_chronicInflam[!is.na(data$Chronic_disease)] <- FALSE
   data$c_chronicInflam[grep("1",data$Chronic_disease)] <- TRUE
-  label(data$c_chronicInflam) <- "Chronic inflammatory disease"
+  #label(data$c_chronicInflam) <- "Chronic inflammatory disease"
     
   data$c_chronicRheum <- NA
   data$c_chronicRheum[!is.na(data$Chronic_disease)] <- FALSE
   data$c_chronicRheum[grep("2",data$Chronic_disease)] <- TRUE
-  label(data$c_chronicRheum) <- "Chronic rheumatic disease"
+  #label(data$c_chronicRheum) <- "Chronic rheumatic disease"
   
   data$c_chronicAsthma <- NA
   data$c_chronicAsthma[!is.na(data$Chronic_disease)] <- FALSE
   data$c_chronicAsthma[grep("3",data$Chronic_disease)] <- TRUE
-  label(data$c_chronicAsthma) <- "Chronic asthma"
+  #label(data$c_chronicAsthma) <- "Chronic asthma"
   
   data$c_chronicOther <- NA
   data$c_chronicOther[!is.na(data$Chronic_disease)] <- FALSE
   data$c_chronicOther[grep("4",data$Chronic_disease)] <- TRUE
-  label(data$c_chronicOther) <- "Chronic other disease"
+  #label(data$c_chronicOther) <- "Chronic other disease"
   
   data$c_chronicInflamOrRheum <- data$c_chronicInflam | data$c_chronicRheum
-  label(data$c_chronicInflamOrRheum) <- "Chronic inflammatory or rheumatic disease"
+  #label(data$c_chronicInflamOrRheum) <- "Chronic inflammatory or rheumatic disease"
   
   unique(data$Chronic_disease)
   
   # breastfeeding
   unique(data$ppv6_breastfeeding)
+  data$ppv6_breastfeeding <- haven::as_factor(data$ppv6_breastfeeding)
   data$c_breastfeeding <- NA
   data$c_breastfeeding[!is.na(data$ppv6_breastfeeding)] <- "Formula only"
   data$c_breastfeeding[grep("Breastfeed and bottle-feed",data$ppv6_breastfeeding)] <- "Partial"
@@ -389,52 +399,60 @@ CleanData <- function(){
     "Partial",
     "Formula only"
   ))
-  label(data$c_breastfeeding) <- "Breastfeeding"
+  xtabs(~data$c_breastfeeding)
+  #label(data$c_breastfeeding) <- "Breastfeeding"
   
   data$c_formulaOnly <- NA
   data$c_formulaOnly[!is.na(data$c_breastfeeding)] <- FALSE
   data$c_formulaOnly[!is.na(data$c_breastfeeding) & data$c_breastfeeding=="Formula only"] <- TRUE
-  label(data$c_formulaOnly) <- "Formula only"
-  
+  #label(data$c_formulaOnly) <- "Formula only"
+  xtabs(~data$c_formulaOnly)
   
   data$c_breastfeedingOnly <- NA
   data$c_breastfeedingOnly[!is.na(data$c_breastfeeding)] <- FALSE
   data$c_breastfeedingOnly[!is.na(data$c_breastfeeding) & data$c_breastfeeding=="Breastfeed only"] <- TRUE
-  label(data$c_breastfeedingOnly) <- "Breastfeeding only"
+  #label(data$c_breastfeedingOnly) <- "Breastfeeding only"
+  xtabs(~data$c_breastfeedingOnly)
   
   # earlier depression
+  data$MD_earlier <- haven::as_factor(data$MD_earlier)
   unique(data$MD_earlier)
   data$c_earlierDepression <- NA
   data$c_earlierDepression[!is.na(data$MD_earlier)] <- FALSE
   data$c_earlierDepression[!is.na(data$c_earlierDepression) & data$MD_earlier=="Major depression erlier in life"] <- TRUE
-  label(data$c_earlierDepression) <- "Depression earlier in life"
+  #label(data$c_earlierDepression) <- "Depression earlier in life"
   xtabs(~data$MD_earlier)
   xtabs(~data$c_earlierDepression)
   
   # caesarean
+  data$Delivery_mode_2gr <- haven::as_factor(data$Delivery_mode_2gr)
   unique(data$Delivery_mode_2gr)
   data$c_caesarean <- NA
   data$c_caesarean[!is.na(data$Delivery_mode_2gr)] <- FALSE
   data$c_caesarean[!is.na(data$c_caesarean) & data$Delivery_mode_2gr=="CS"] <- TRUE
-  label(data$c_caesarean) <- "Caesarean"
+  #label(data$c_caesarean) <- "Caesarean"
   xtabs(~data$Delivery_mode_2gr)
   xtabs(~data$c_caesarean)
   
   # SSRI
+  data$SSRI <- haven::as_factor(data$SSRI)
   unique(data$SSRI)
   data$c_ssriPG <- NA
   data$c_ssriPG[!is.na(data$SSRI)] <- FALSE
   data$c_ssriPG[!is.na(data$SSRI) & data$SSRI=="use in pregnancy"] <- TRUE
   data$c_ssriPG[!is.na(data$SSRI) & data$SSRI=="use in pregnancy and pp"] <- TRUE
-  label(data$c_ssriPG) <- "SSRI in pregnancy"
+  #label(data$c_ssriPG) <- "SSRI in pregnancy"
+  xtabs(~data$c_ssriPG)
   
   data$c_ssriPP <- NA
   data$c_ssriPP[!is.na(data$SSRI)] <- FALSE
   data$c_ssriPP[!is.na(data$SSRI) & data$SSRI=="use in pp"] <- TRUE
   data$c_ssriPP[!is.na(data$SSRI) & data$SSRI=="use in pregnancy and pp"] <- TRUE
-  label(data$c_ssriPP) <- "SSRI post-partum"
+  #label(data$c_ssriPP) <- "SSRI post-partum"
+  xtabs(~data$c_ssriPP)
   
   # INFLMATTION MARKERS
+  data <- as.data.frame(data)
   
   dataNamesRaw <- c("Outcome_new")
   dataNamesOutcome <- names(data)[stringr::str_detect(names(data),"^o_")]
@@ -444,7 +462,7 @@ CleanData <- function(){
   dataNamesIMPG <- dataNamesIMPG[!dataNamesIMPG %in% dataNamesIMPP]
   
   #file <- system.file("extdata","lod.txt",package="inflammation")
-  file <- file.path(RPROJ$PROJRAW,"lod.txt")
+  file <- file.path(RAWmisc::PROJ$RAW,"lod.txt")
   lod <- as.data.frame(fread(file))
   lod$lod <- as.numeric(str_replace_all(lod$lod, ",", "."))
   lod$imNum <- str_extract(lod$factor, "^[0-9][0-9][0-9]")
@@ -684,9 +702,9 @@ CleanData <- function(){
     meanZdiff
   )
   
-  label(zscores$meanZPG) <- c("Z-score of mean PG IF Z-scores")
-  label(zscores$meanZPP) <- c("Z-score of mean PP IF Z-scores")
-  label(zscores$meanZdiff) <- c("Z-score of PP minus PG")
+  #label(zscores$meanZPG) <- c("Z-score of mean PG IF Z-scores")
+  #label(zscores$meanZPP) <- c("Z-score of mean PP IF Z-scores")
+  #label(zscores$meanZdiff) <- c("Z-score of PP minus PG")
   
   #################
   
@@ -753,10 +771,10 @@ CleanData <- function(){
   meanZupPP <- (meanZupPP-mean(meanZupPP[dataDemographic$o_pp_sensitive_1=="Control"],na.rm=T))/sd(meanZupPP[dataDemographic$o_pp_sensitive_1=="Control"],na.rm=T)
   
   zscores <- data.frame(zscores,meanZdownPG,meanZdownPP,meanZupPG,meanZupPP)
-  label(zscores$meanZdownPG) <- c("Z-score of mean (down) PG IF Z-scores")
-  label(zscores$meanZdownPP) <- c("Z-score of mean (down) PP IF Z-scores")
-  label(zscores$meanZupPG) <- c("Z-score of mean (up) PG IF Z-scores")
-  label(zscores$meanZupPP) <- c("Z-score of mean (up) PP IF Z-scores")
+  #label(zscores$meanZdownPG) <- c("Z-score of mean (down) PG IF Z-scores")
+  #label(zscores$meanZdownPP) <- c("Z-score of mean (down) PP IF Z-scores")
+  #label(zscores$meanZupPG) <- c("Z-score of mean (up) PG IF Z-scores")
+  #label(zscores$meanZupPP) <- c("Z-score of mean (up) PP IF Z-scores")
   
   
   #### Z SCORES WITH PPvalues CONTROLS AS REFERENCE
@@ -794,10 +812,10 @@ CleanData <- function(){
   PPREFmeanZupPP <- (meanZupPP-mean(meanZupPP[dataDemographic$o_pp_sensitive_1=="Control"],na.rm=T))/sd(meanZupPP[dataDemographic$o_pp_sensitive_1=="Control"],na.rm=T)
   
   PPREFzscores <- data.frame(CustomDataR=dataLog2IMPG$CustomDataR,PPREFmeanZdownPG,PPREFmeanZdownPP,PPREFmeanZupPG,PPREFmeanZupPP)
-  label(PPREFzscores$PPREFmeanZdownPG) <- c("Z-score of mean (down) PG IF Z-scores using PP as reference")
-  label(PPREFzscores$PPREFmeanZdownPP) <- c("Z-score of mean (down) PP IF Z-scores using PP as reference")
-  label(PPREFzscores$PPREFmeanZupPG) <- c("Z-score of mean (up) PG IF Z-scores using PP as reference")
-  label(PPREFzscores$PPREFmeanZupPP) <- c("Z-score of mean (up) PP IF Z-scores using PP as reference")
+  #label(PPREFzscores$PPREFmeanZdownPG) <- c("Z-score of mean (down) PG IF Z-scores using PP as reference")
+  #label(PPREFzscores$PPREFmeanZdownPP) <- c("Z-score of mean (down) PP IF Z-scores using PP as reference")
+  #label(PPREFzscores$PPREFmeanZupPG) <- c("Z-score of mean (up) PG IF Z-scores using PP as reference")
+  #label(PPREFzscores$PPREFmeanZupPP) <- c("Z-score of mean (up) PP IF Z-scores using PP as reference")
   
   #################
   dim(dataDemographic)

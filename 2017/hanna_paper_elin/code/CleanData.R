@@ -71,6 +71,9 @@ CleanData <- function(){
   dataNamesIMPG <- dataNamesIMPG[!dataNamesIMPG %in% dataNamesIMPP]
   dataNamesIMPG <- dataNamesIMPG[!dataNamesIMPG %in% c("im_time_point","im_participating_preg","im_participating_pp")]
   
+  dataNamesIMPG <- dataNamesIMPG[!dataNamesIMPG %in% c("im_103_BDNF")]
+  dataNamesIMPP <- dataNamesIMPP[!dataNamesIMPP %in% c("im_103_BDNF_pp")]
+  
   dataIMPG <- FixLOD(dataIM = data[,c("CustomDataR","im_participating_preg",dataNamesIMPG)])
   dataIMPP <- FixLOD(dataIM = data[,c("CustomDataR","im_participating_pp",dataNamesIMPP)])
   
@@ -154,7 +157,9 @@ CleanData <- function(){
   dim(dataIMPG)
   dim(dataIMPP)
   
-  openxlsx::write.xlsx(data,file.path(RAWmisc::PROJ$BAKED,"data_inflammation_factors.xlsx"))
+  openxlsx::write.xlsx(data,file.path(RAWmisc::PROJ$SHARED_TODAY,"data_inflammation_factors.xlsx"))
+  
+  return(data)
 }
 
 
