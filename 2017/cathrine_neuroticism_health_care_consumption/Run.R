@@ -181,6 +181,10 @@ stack_con$data <- "d"
 
 stack_linear_with_graviditetsar <- rbind(stack_bin, stack_con)
 stack_linear_without_graviditetsar <- copy(stack_linear_with_graviditetsar)
+
+stack_linear_with_graviditetsar$analysisID <- RAWmisc::UUID(nrow(stack_linear_with_graviditetsar))
+stack_linear_without_graviditetsar$analysisID <- RAWmisc::UUID(nrow(stack_linear_without_graviditetsar))
+
 for(i in 1:length(stack_linear_without_graviditetsar$confounders)){
   stack_linear_without_graviditetsar$confounders[[i]] <- stack_linear_without_graviditetsar$confounders[[i]][stack_linear_without_graviditetsar$confounders[[i]]!="Graviditetsar"]
 }
@@ -244,10 +248,22 @@ spline_or_linear[,exposure:=ifelse(aic_linear_minus_spline>3,"0 to 1, splines::n
 
 openxlsx::write.xlsx(spline_or_linear,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","table2_without_gravidetetsar_spline_or_linear.xlsx"))
 
+# use table 2 to establish the desired linear/splines
 retval <- rbindlist(retval)
 retval <- merge(retval,spline_or_linear[,c("outcome","exposure")],by=c("outcome","exposure"))
-setorder(retval,stack_name,outcome)
+setorder(retval,analysisID)
 
+toMerge <- spline_or_linear[,c("outcome","exposure")]
+toMerge[,exposure:=stringr::str_remove(exposure,"0 to 1, ")]
+stack_with_graviditetsar <- rbind(stack_linear_with_graviditetsar,stack_spline_with_graviditetsar)
+stack_with_graviditetsar <- merge(stack_with_graviditetsar,toMerge,by=c("outcome","exposure"))
+stack_without_graviditetsar <- rbind(stack_linear_without_graviditetsar,stack_spline_without_graviditetsar)
+stack_without_graviditetsar <- merge(stack_without_graviditetsar,toMerge,by=c("outcome","exposure"))
+
+setorder(stack_with_graviditetsar,analysisID)
+setorder(stack_without_graviditetsar,analysisID)
+
+# cleaning up table3 results
 retval_with_graviditetsar <- retval[stringr::str_detect(stack_name,"_with_")]
 retval_without_graviditetsar <- retval[stringr::str_detect(stack_name,"_without_")]
 retval_with_graviditetsar[,stack_name:=NULL]
@@ -268,6 +284,34 @@ for(stack_name in c(
   openxlsx::write.xlsx(get(stack_name),file.path(RAWmisc::PROJ$SHARED_TODAY,"tables",sprintf("details_table3_%s.xlsx",stack_name)))
 }
 
+### extracting full results for table 3s
+
+retval <- list()
+for(stack_name in c(
+  "stack_with_graviditetsar",
+  "stack_without_graviditetsar"
+)){
+  stack <- RAWmisc::ExpandStack(get(stack_name), newAnalysisID=F)
+  
+  temp <- vector("list",length=nrow(stack))
+  for(i in 1:length(temp)){
+    print(stack$outcome[i])
+    print(xtabs(~d[[stack$outcome[i]]]))
+    temp[[i]] <- RAWmisc::ProcessStack(stack=stack,i=i,formatResults=TRUE)
+  }
+  retval <- rbindlist(temp)
+  retval[,stack_name:=stack_name]
+  
+  openxlsx::write.xlsx(retval,file.path(
+    RAWmisc::PROJ$SHARED_TODAY,
+    "tables",
+    sprintf("table3_confounders_%s.xlsx",stringr::str_remove(stack_name,"stack_"))))
+}
+
+
+
+
+### interaction_age_prenatal_diagnostics_ca
 
 stack_interaction <- stack_linear_without_graviditetsar[stack_linear_without_graviditetsar$outcome=="Prenatal_diagnostics_CA",]
 stack_interaction$confounders[[1]] <- c(stack_interaction$confounders[[1]],stack_interaction$exposure[[1]])
@@ -280,9 +324,128 @@ for(i in 1:length(retval)){
 }
 retval <- rbindlist(retval)
 
-openxlsx::write.xlsx(stack_interaction,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","details_interaction.xlsx"))
-openxlsx::write.xlsx(retval,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","interaction.xlsx"))
+openxlsx::write.xlsx(stack_interaction,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","details_interaction_age_prenatal_diagnostics_ca.xlsx"))
+openxlsx::write.xlsx(retval,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","interaction_age_prenatal_diagnostics_ca.xlsx"))
 
+
+### interactions with c("Age_3_CA","Education_CA","Country_CA")
+
+for(varInteract in c("Age_3_CA","Education_CA","Country_CA")) for(x in c("with_graviditetsar","without_graviditetsar")){
+  stack_interaction <- get(sprintf("stack_%s",x))
+  stack_interaction$analysisID <- RAWmisc::UUID(nrow(stack_interaction))
+  for(i in 1:nrow(stack_interaction)){
+    stack_interaction$confounders[[i]] <- c(stack_interaction$confounders[[i]],stack_interaction$exposure[[i]])
+    stack_interaction$exposure[[i]] <- sprintf("%s:%s",stack_interaction$exposure[[i]],varInteract)
+  }
+  stack_interaction$graphFileName <- NA
+  
+  retval <- vector("list",length=nrow(stack_interaction))
+  for(i in 1:length(retval)){
+    retval[[i]] <- RAWmisc::ProcessStack(stack=stack_interaction,i=i,formatResults=TRUE)
+  }
+  retval <- rbindlist(retval)
+  
+  openxlsx::write.xlsx(stack_interaction,file.path(
+    RAWmisc::PROJ$SHARED_TODAY,
+    "tables",
+    sprintf("details_table4_interaction_%s_%s.xlsx",x,varInteract)))
+  
+  openxlsx::write.xlsx(retval,file.path(
+    RAWmisc::PROJ$SHARED_TODAY,
+    "tables",
+    sprintf("table4_interaction_%s_%s.xlsx",x,varInteract)))
+}  
+
+varInteract <- "Country_CA"
+for(lev in na.omit(unique(d$Country_CA))) for(x in c("with_graviditetsar","without_graviditetsar")){
+  newVar <- sprintf("d_%s_%s",varInteract,lev)
+  assign(newVar, d[get(varInteract)==lev])
+  
+  stack_interaction <- get(sprintf("stack_%s",x))
+  stack_interaction$analysisID <- RAWmisc::UUID(nrow(stack_interaction))
+  for(i in 1:nrow(stack_interaction)){
+    stack_interaction$confounders[[i]] <- stack_interaction$confounders[[i]][stack_interaction$confounders[[i]] != varInteract]
+  }
+  stack_interaction$graphFileName <- stringr::str_replace_all(stack_interaction$graphFileName,
+                                                              "figures/",
+                                                              sprintf("figures/%s_%s=%s_",x,varInteract,lev)
+                                                              )
+  stack_interaction$data <- newVar
+  
+  retval <- vector("list",length=nrow(stack_interaction))
+  for(i in 1:length(retval)){
+    retval[[i]] <- RAWmisc::ProcessStack(stack=stack_interaction,i=i,formatResults=TRUE)
+  }
+  retval <- rbindlist(retval)
+  
+  openxlsx::write.xlsx(stack_interaction,file.path(
+    RAWmisc::PROJ$SHARED_TODAY,
+    "tables",
+    sprintf("details_table5_interaction_%s_%s=%s.xlsx",x,varInteract,lev)))
+  
+  openxlsx::write.xlsx(retval,file.path(
+    RAWmisc::PROJ$SHARED_TODAY,
+    "tables",
+    sprintf("table5_interaction_%s_%s=%s.xlsx",x,varInteract,lev)))
+}  
+
+
+f1 <- MASS::glm.nb(Obgyn_physician_count_CA~IQR_Neuroticism_CA,data=d[Country_CA==0])
+summary(f1)
+
+f1 <- MASS::glm.nb(Obgyn_physician_count_CA~IQR_Neuroticism_CA,data=d[Country_CA==1])
+summary(f1)
+
+
+
+
+
+stack_interaction[stack_interaction$outcome=="Base_prog_CA",]
+retval[outcome=="Base_prog_CA"]$a_p_lrt
+
+f0 <- glm(Base_prog_CA~
+            Parity_D_CA+
+            Country_CA+Education_CA+
+            Working_status_CA+
+            Single_CA+
+            Psychiatric_disorder_medication_CA+
+            Age_3_CA+
+            BMI_3_CA+IQR_Neuroticism_CA,data=d,family=binomial)
+
+f1 <- glm(Base_prog_CA~IQR_Neuroticism_CA:Age_3_CA+
+            Parity_D_CA+
+            Country_CA+Education_CA+
+            Working_status_CA+
+            Single_CA+
+            Psychiatric_disorder_medication_CA+
+            Age_3_CA+
+            BMI_3_CA+IQR_Neuroticism_CA,data=d,family=binomial)
+
+lrtest(f1,f0)
+
+
+
+f0 <- MASS::glm.nb(Midwife_ObGyn_phone_visits_CA~
+            Parity_D_CA+
+            Country_CA+Education_CA+
+            Working_status_CA+
+            Single_CA+
+            Psychiatric_disorder_medication_CA+
+            Age_3_CA+
+            BMI_3_CA+splines::ns(IQR_Neuroticism_CA,df=4),data=dataAdj)
+
+f1 <- MASS::glm.nb(Midwife_ObGyn_phone_visits_CA~splines::ns(IQR_Neuroticism_CA,df=4):Age_3_CA+
+            Parity_D_CA+
+            Country_CA+Education_CA+
+            Working_status_CA+
+            Single_CA+
+            Psychiatric_disorder_medication_CA+
+            Age_3_CA+
+            BMI_3_CA+splines::ns(IQR_Neuroticism_CA,df=4),data=dataAdj)
+
+lmtest::lrtest(f1,f0)
+stack_interaction[stack_interaction$outcome=="Midwife_ObGyn_phone_visits_CA",]
+retval[outcome=="Midwife_ObGyn_phone_visits_CA"]$a_p_lrt
 
 
 
