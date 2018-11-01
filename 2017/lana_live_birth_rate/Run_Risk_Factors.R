@@ -1,23 +1,13 @@
-RAWmisc::AllowFileManipulationFromInitialiseProject()
-RAWmisc::InitialiseProject(
-  HOME = "/git/code_minor/2017/lana_live_birth_rate/",
-  RAW = "/analyses/data_raw/code_minor/2017/lana_live_birth_rate/",
-  CLEAN = "/analyses/data_clean/code_minor/2017/lana_live_birth_rate",
-  BAKED = "/analyses/results_baked/code_minor/2017/lana_live_birth_rate/",
-  FINAL = "/analyses/results_final/code_minor/2017/lana_live_birth_rate/",
-  SHARED = "/dropbox/results_shared/code_minor/2017/lana_live_birth_rate/"
-)
-
-dir.create(RAWmisc::PROJ$SHARED_TODAY)
+org::InitialiseOpinionatedUnix("/code_minor/2017/lana_live_birth_rate/")
 
 library(data.table)
 library(ggplot2)
 library(mice)
 
-lanaOutcomes <- data.table(openxlsx::read.xlsx(file.path(RAWmisc::PROJ$RAW,"Lifestyle_IVF_cases170912.xlsx"))) 
+lanaOutcomes <- data.table(openxlsx::read.xlsx(file.path(org::PROJ$RAW,"Lifestyle_IVF_cases170912.xlsx"))) 
 #lanaOutcomes <- lanaOutcomes[,c("")]
-#lana <- data.table(openxlsx::read.xlsx(file.path(RAWmisc::PROJ$RAW,"pek4-IVFcases170816buppstart.xlsx")))
-lana <- data.table(openxlsx::read.xlsx(file.path(RAWmisc::PROJ$RAW,"Lifestyle_IVF_cases170912.xlsx"))) 
+#lana <- data.table(openxlsx::read.xlsx(file.path(org::PROJ$RAW,"pek4-IVFcases170816buppstart.xlsx")))
+lana <- data.table(openxlsx::read.xlsx(file.path(org::PROJ$RAW,"Lifestyle_IVF_cases170912.xlsx"))) 
 #variablesFirst[!variablesFirst %in% names(lana)]
 for(i in 1:ncol(lana)) lana[[i]] <- as.numeric(lana[[i]])
 
@@ -79,8 +69,8 @@ hist(lana$miscarriage)
 hist(lana$Livebirth_all)
 hist(lana$livebirth_ET)
 
-masterdata <- data.table(openxlsx::read.xlsx(file.path(RAWmisc::PROJ$RAW,"Uppstart-predicition_alcohol.xlsx")))
-smoking <- data.table(openxlsx::read.xlsx(file.path(RAWmisc::PROJ$RAW,"Kopia avuppstart170911_smoke.xlsx")))
+masterdata <- data.table(openxlsx::read.xlsx(file.path(org::PROJ$RAW,"Uppstart-predicition_alcohol.xlsx")))
+smoking <- data.table(openxlsx::read.xlsx(file.path(org::PROJ$RAW,"Kopia avuppstart170911_smoke.xlsx")))
 smoking[!is.na(SMOKE_EVER),smoker:=0]
 smoking[SMOKE_DAILY_NOW==1,smoker:=1]
 smoking[SMOKE_STOP_SINCE %in% c(1,2),smoker:=1]
@@ -114,6 +104,21 @@ masterdata[livebirth_ET==2,livebirth_ET:=1]
 lana[ET==1 & pos_preg==0, miscarriage:=NA]
 masterdata[ET==1 & pos_preg==0, miscarriage:=NA]
 
+### SMOKING NOW
+lana[,smoke_now_daily:=SMOKE_DAILY_NOW_UPPSTART]
+masterdata[,smoke_now_daily:=SMOKE_DAILY_NOW]
+
+# AFC_TOTAL_UNDER_7
+lana[,AFC_TOTAL_UNDER_7:=AFC_TOTAL<7]
+masterdata[,AFC_TOTAL_UNDER_7:=AFC_TOTAL<7]
+
+# AMH_UNDER_05
+lana[,AMH_UNDER_05:=AMH<0.5]
+masterdata[,AMH_UNDER_05:=AMH<0.5]
+
+# AMH_UNDER_1
+lana[,AMH_UNDER_1:=AMH<1]
+masterdata[,AMH_UNDER_1:=AMH<1]
 
 #"HEALTH_HYPERTH",
 #"HEALTH_HYPOTH",
@@ -181,6 +186,7 @@ variablesTable1 <- c(
   "BMI",
   "BMI_Category",
   "SMOKE_EVER",
+  "smoke_now_daily",
   "alcohol",
   "caffeine_daily",
   "PAL_total",
@@ -196,11 +202,15 @@ variablesTable1 <- c(
   "ASP_EGG",
   "n_embryo_created",
   "n_embryo_used",
-  "n_mature_egg"
+  "n_mature_egg",
+  
+  "AFC_TOTAL_UNDER_7",
+  "AMH_UNDER_05",
+  "AMH_UNDER_1"
 )
 
 
-folder <- RAWmisc::PROJ$SHARED_TODAY
+folder <- org::PROJ$SHARED_TODAY
 dir.create(folder)
 
 masterdata <- copy(masteranastasia)
@@ -404,8 +414,8 @@ for(i in outcomes){
   data[[i]] <- mice::mice(d[[i]], m=20, method="pmm", seed=4)
   if(!is.null(l[[i]])) ldata[[i]] <- mice::mice(l[[i]], m=20, method="pmm", seed=4)
   
-  openxlsx::write.xlsx(d[[i]][,1:2],file=file.path(RAWmisc::PROJ$SHARED_TODAY,sprintf("sample_sizes_anastasia_%s.xlsx",i)))
-  openxlsx::write.xlsx(l[[i]][,1:2],file=file.path(RAWmisc::PROJ$SHARED_TODAY,sprintf("sample_sizes_lana_%s.xlsx",i)))
+  openxlsx::write.xlsx(d[[i]][,1:2],file=file.path(org::PROJ$SHARED_TODAY,sprintf("sample_sizes_anastasia_%s.xlsx",i)))
+  openxlsx::write.xlsx(l[[i]][,1:2],file=file.path(org::PROJ$SHARED_TODAY,sprintf("sample_sizes_lana_%s.xlsx",i)))
 }
 
 plotData <- rbind(data[["n_mature_egg"]]$data,complete(data[["n_mature_egg"]],1))
@@ -423,7 +433,7 @@ q <- q + geom_point(data=plotData[imputed=="Imputed"])
 q <- q + scale_color_brewer(palette="Set1")
 q <- q + scale_x_continuous(lim=c(0,25))
 q <- q + theme_gray(16)
-RAWmisc::saveA4(q,file.path(RAWmisc::PROJ$SHARED_TODAY,"afc_imputation.png"))
+RAWmisc::saveA4(q,file.path(org::PROJ$SHARED_TODAY,"afc_imputation.png"))
 
 
 
@@ -510,7 +520,7 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
     if(!is.null(fitFull)){
       x <- data.frame(summary(pool(fitFull)))
       x$var <- row.names(x)
-      resA <- x[,c("est","se","Pr...t..","var")]
+      resA <- x[,c("estimate","std.error","p.value","var")]
       names(resA) <- c("Abeta","Ase","Ap","var")
       resA <- data.table(resA)
       resA <- resA[var!="(Intercept)" & abs(Abeta)<3]
@@ -535,7 +545,7 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
         x <- data.frame(summary(pool(fit1)))
         x$var <- row.names(x)
         if(abs(x$est[2])<3){
-          resC[[j]] <- x[,c("est","se","Pr...t..","var")]
+          resC[[j]] <- x[,c("estimate","std.error","p.value","var")]
           names(resC[[j]]) <- c("Cbeta","Cse","Cp","var")
           
           fit0x <- tryCatch({
@@ -662,7 +672,7 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
     
     x <- data.frame(summary(pool(fit1)))
     x$var <- row.names(x)
-    retval <- x[,c("est","se","Pr...t..","var")]
+    retval <- x[,c("estimate","std.error","p.value","var")]
     names(retval) <- c("beta","se","psingle","var")
     retval <- data.table(retval)
     retval <- retval[var!="(Intercept)"]
@@ -746,7 +756,7 @@ retval1[crude!="1 (ref)",outcome:=""]
 
 retval1 <- retval1[,c("denominator","outcome","var","crude","psingle","Cp","IntP","riskFactors","decision")]
 retval1
-openxlsx::write.xlsx(retval1,file.path(RAWmisc::PROJ$SHARED_TODAY,"FINAL_CUMULATIVE.xlsx"))
+openxlsx::write.xlsx(retval1,file.path(org::PROJ$SHARED_TODAY,"FINAL_CUMULATIVE.xlsx"))
 
 retval0 <- rbindlist(retval0)
 retval0[,outcome:=factor(outcome,levels=c("ASP_EGG","n_mature_egg","n_embryo_created","n_embryo_used"))]
@@ -767,7 +777,7 @@ setnames(retval0,c(
   "ANAS_adjusted_irr",
   "ANAS_adjusted_pval"
 ))
-openxlsx::write.xlsx(retval0,file.path(RAWmisc::PROJ$SHARED_TODAY,"FINAL_REGRESSIONS.xlsx"))
+openxlsx::write.xlsx(retval0,file.path(org::PROJ$SHARED_TODAY,"FINAL_REGRESSIONS.xlsx"))
 
 ExtractInteractedEffectEstimates <- function (beta, va, nameBase, nameInteractions, interactionValue = 1) 
 {
@@ -825,5 +835,44 @@ q <- q + scale_x_continuous("AFC")
 q <- q + theme_gray(16)
 q
 
-RAWmisc::saveA4(q,file.path(RAWmisc::PROJ$SHARED_TODAY,sprintf("FINAL_INTERACTION_%s_%s.png",outcome,denominator)))
+RAWmisc::saveA4(q,file.path(org::PROJ$SHARED_TODAY,sprintf("FINAL_INTERACTION_%s_%s.png",outcome,denominator)))
+
+
+modelsIndex <- modelsIndex + 1
+models1[[modelsIndex]] <- data.frame(
+  "outcome"="n_mature_egg",
+  "method"="regression",
+  "family"="quasipoisson",
+  stringsAsFactors = FALSE)
+
+strataD <- copy(d[["n_mature_egg"]][!is.na(ASP_EGG) & ASP_EGG>0])
+strataD[,riskBMI:=BMI>median(BMI,na.rm=T)]
+strataD[,riskSMOKE:=SMOKE_EVER]
+strataD[,risk:=riskBMI+riskSMOKE]
+xtabs(~strataD$risk)
+
+strataD[,highAFC_TOTAL:=AFC_TOTAL>quantile(AFC_TOTAL,probs=0.25,na.rm=T)]
+
+f <- glm(n_mature_egg ~ as.factor(risk) + offset(log(ASP_EGG)), data=strataD[highAFC_TOTAL==T], family="quasipoisson")
+res <- as.data.frame(coef(summary(f)))
+res$var <- row.names(res)
+setDT(res)
+res[,l95:=exp(Estimate-1.96*`Std. Error`)]
+res[,u95:=exp(Estimate+1.96*`Std. Error`)]
+res[,IRR:=exp(Estimate)]
+res <- res[var!="(Intercept)",c("var","IRR","l95","u95","Pr(>|t|)")]
+print(res)
+openxlsx::write.xlsx(res,file.path(org::PROJ$SHARED_TODAY,"SENSITIVITY_OVER25thPERCENTILE_AFC.xlsx"))
+
+
+f <- glm(n_mature_egg ~ as.factor(risk) + offset(log(ASP_EGG)), data=strataD[highAFC_TOTAL==F], family="quasipoisson")
+res <- as.data.frame(coef(summary(f)))
+res$var <- row.names(res)
+setDT(res)
+res[,l95:=exp(Estimate-1.96*`Std. Error`)]
+res[,u95:=exp(Estimate+1.96*`Std. Error`)]
+res[,IRR:=exp(Estimate)]
+res <- res[var!="(Intercept)",c("var","IRR","l95","u95","Pr(>|t|)")]
+print(res)
+openxlsx::write.xlsx(res,file.path(org::PROJ$SHARED_TODAY,"SENSITIVITY_UNDER25thPERCENTILE_AFC.xlsx"))
 

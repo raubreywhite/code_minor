@@ -322,7 +322,7 @@ SeasonalAnalysis <- function(){
                                                  "2017-12-01",
                                                  "2018-01-01")))
     q <- q + scale_y_continuous("Change in NPX [log2(concentration)]")
-    q <- q + theme_gray(base_size=16)
+    q <- q + theme_gray(base_size=20)
     q <- q + facet_wrap(~Depressed,ncol=1)
     RAWmisc::saveA4(q,filename=file.path(RAWmisc::PROJ$SHARED_TODAY,sens,"figure_all.png"))
     
@@ -358,8 +358,9 @@ SeasonalAnalysis <- function(){
       q <- q + stat_smooth(data=pd,mapping=aes(x=day,y=NPX),se=F,col="blue",lwd=1.5)
       q <- q + geom_line(data=fitted,mapping=aes(x=day,y=y+zeropoint),col="red",lwd=1.5)
       q <- q + scale_x_continuous("Day of year")
-      q <- q + labs(title=sprintf("%s - %s",dep,im))
-      q <- q + labs(caption="Red line = Cosine/Sine fit from regression models. Blue line = LOESS fit. ")
+      #q <- q + labs(title=sprintf("%s - %s",dep,im))
+      q <- q + theme_gray(base_size=20)
+      #q <- q + labs(caption="Red line = Cosine/Sine fit from regression models. Blue line = LOESS fit. ")
       RAWmisc::saveA4(q,filename=file.path(RAWmisc::PROJ$SHARED_TODAY,sens,
                                            "scatter_plots",
                                            sprintf("%s_%s.png",dep,im)))

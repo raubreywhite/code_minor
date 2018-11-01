@@ -28,8 +28,18 @@ library(ggplot2)
 CleanData()
 ls()
 
+sink(file.path(RAWmisc::PROJ$SHARED_TODAY,"std_dev_ims_pg_sensitivity_over_main.txt"))
+sd(pg$im_sample_day_preg)
+sd(pg[sensitivity_discrepancy_pg==1]$im_sample_day_preg)
+sink()
+
 length(pg_ims)
 length(pp_ims)
+
+sink(file.path(RAWmisc::PROJ$SHARED_TODAY,"SSRI_CROSSTABS.txt"))
+xtabs(~pg$v32_SSRI,addNA=T)
+xtabs(~pp$ppv6_SSRI,addNA=T)
+sink()
 
 x <- readxl::read_excel("/dropbox/analyses/results_shared/code_minor/2017/hanna_paper_elin/2018-06-21/data_inflammation_factors.xlsx")
 setnames(x,"zscorePG","zscoreNEWPG")
@@ -43,6 +53,17 @@ png(file.path(RAWmisc::PROJ$SHARED_TODAY,"lomb_scargle_periodogram_pg.png"),widt
 lomb::lsp(as.matrix(na.omit(y[,c("im_sample_day_preg","zscoreNEWPG")])),type="period",from=30,to=500, ofac=20,alpha=0.05)
 dev.off()
 
+LombScargle <- lomb::lsp(as.matrix(na.omit(y[,c("im_sample_day_preg","zscoreNEWPG")])),type="period",from=30,to=500, ofac=20,alpha=0.05)
+lomb.df <- data.frame(period=LombScargle$scanned, power=LombScargle$power)
+q <- ggplot(lomb.df, aes(period, power))
+q <- q + geom_line()
+q <- q + labs(y="Normalised power")
+q <- q + geom_hline(yintercept=LombScargle$sig.level, linetype="dashed")
+q <- q + scale_x_continuous("Period")
+q <- q + theme_gray(base_size=20)
+RAWmisc::saveA4(q,filename=file.path(RAWmisc::PROJ$SHARED_TODAY,"FIXED_lomb_scargle_periodogram_pg.png"))
+
+
 y <- merge(pp[,c("CustomDataR","zscorePP","im_sample_day_pp")],x[,c("CustomDataR","zscoreNEWPP")],by="CustomDataR")
 plot(y$zscorePP~y$zscoreNEWPP)
 cor(y$zscorePP,y$zscoreNEWPP)
@@ -51,9 +72,22 @@ png(file.path(RAWmisc::PROJ$SHARED_TODAY,"lomb_scargle_periodogram_pp.png"),widt
 lomb::lsp(as.matrix(na.omit(y[,c("im_sample_day_pp","zscoreNEWPP")])),type="period",from=30,to=500, ofac=20,alpha=0.05)
 dev.off()
 
+LombScargle <- lomb::lsp(as.matrix(na.omit(y[,c("im_sample_day_pp","zscoreNEWPP")])),type="period",from=30,to=500, ofac=20,alpha=0.05)
+lomb.df <- data.frame(period=LombScargle$scanned, power=LombScargle$power)
+q <- ggplot(lomb.df, aes(period, power))
+q <- q + geom_line()
+q <- q + labs(y="Normalised power")
+q <- q + geom_hline(yintercept=LombScargle$sig.level, linetype="dashed")
+q <- q + scale_x_continuous("Period")
+q <- q + theme_gray(base_size=20)
+RAWmisc::saveA4(q,filename=file.path(RAWmisc::PROJ$SHARED_TODAY,"FIXED_lomb_scargle_periodogram_pp.png"))
+
 SeasonalAnalysis()
 SeasonalAnalysisWithInteraction()
 SeasonalAdjustedIMPredictingDepression()
+
+
+# end?
 
 stack_pg <- RAWmisc::CreateStackSkeleton(n=length(pg_ims))
 stack_pg$regressionType <- "logistic"

@@ -338,6 +338,15 @@ for(varInteract in c("Age_3_CA","Education_CA","Country_CA")) for(x in c("with_g
     stack_interaction$exposure[[i]] <- sprintf("%s:%s",stack_interaction$exposure[[i]],varInteract)
   }
   stack_interaction$graphFileName <- NA
+  if(varInteract=="Country_CA"){
+    for(i in which(stringr::str_detect(stack_interaction$exposure,"splines"))){
+      stack_interaction[i,]$nameInteractions <- c("Country_CA")
+    }
+    for(i in which(!stringr::str_detect(stack_interaction$exposure,"splines"))){
+      stack_interaction[i,]$nameBase <- "IQR_Neuroticism_CA"
+      stack_interaction[i,]$nameInteractions <- c("IQR_Neuroticism_CA:Country_CA")
+    }
+  }
   
   retval <- vector("list",length=nrow(stack_interaction))
   for(i in 1:length(retval)){
