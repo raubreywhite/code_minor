@@ -1,7 +1,7 @@
 CleanData <- function(){
   
-  addedPG <- data.table(haven::read_spss(file.path(RAWmisc::PROJ$RAW,"final_preg_180308.sav")))
-  addedPP <- data.table(haven::read_spss(file.path(RAWmisc::PROJ$RAW,"final_pp_180308.sav")))
+  addedPG <- data.table(haven::read_spss(file.path(org::PROJ$RAW,"final_preg_180308.sav")))
+  addedPP <- data.table(haven::read_spss(file.path(org::PROJ$RAW,"final_pp_180308.sav")))
   addedPG[is.na(sensitivity_discrepancy),sensitivity_discrepancy:=0]
   addedPP[is.na(sensitivity_discrepancy),sensitivity_discrepancy:=0]
   setnames(addedPG,"exclude_SSRI","exclude_SSRI_pg")
@@ -10,7 +10,7 @@ CleanData <- function(){
   setnames(addedPP,"sensitivity_discrepancy","sensitivity_discrepancy_pp")
   
   
-  d <- data.table(haven::read_spss(file.path(RAWmisc::PROJ$RAW,"alla_large_participation_2017_09_01.sav")))
+  d <- data.table(haven::read_spss(file.path(org::PROJ$RAW,"alla_large_participation_2017_09_01.sav")))
   
   nrow(d)
   d <- merge(d,addedPG,by="CustomDataR",all.x=T)
@@ -84,7 +84,7 @@ CleanData <- function(){
   nrow(pg)
   nrow(pp)
   
-  ifs <- readRDS(file=file.path(RAWmisc::PROJ$RAW,"inflammation_markers_log2_with_lod_sqrt2.RDS"))
+  ifs <- readRDS(file=file.path(org::PROJ$RAW,"inflammation_markers_log2_with_lod_sqrt2.RDS"))
   
   n <- names(ifs)
   n <- n[stringr::str_detect(n,"_pg$")]

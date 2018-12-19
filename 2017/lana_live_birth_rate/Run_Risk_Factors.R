@@ -133,6 +133,18 @@ lana[,reason_infert_Q:=as.factor(reason_infert_Q)]
 masteranastasia <- copy(masterdata)
 masterlana <- copy(lana)
 
+####
+# comparing AMH
+amh_anastasia <- masteranastasia[,c("AMH","X_AGE")]
+amh_lana <- masterlana[,c("AMH","X_AGE")]
+
+amh_anastasia[,isAnastasia:=1]
+amh_lana[,isAnastasia:=0]
+
+amh <- rbind(amh_anastasia, amh_lana)
+
+summary(lm(AMH ~ isAnastasia, data=amh))
+summary(lm(AMH ~ isAnastasia + X_AGE, data=amh))
 
 ####
 # changing lana <-> masterdata
