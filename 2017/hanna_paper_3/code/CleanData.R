@@ -26,8 +26,14 @@ CleanData <- function(){
   pg_ssri <- "v32_SSRI"
   pp_ssri <- "ppv6_SSRI"
   
-  pg_depressed <- "case_control_pregnancy"
-  pp_depressed <- "case_control_pp"
+  pg_oversampling_main <- "v32_oversampling"
+  pp_oversampling_main <- "ppv6_EPDS_D_9R"
+  
+  pg_subanalysis_depressed <- "case_control_pregnancy"
+  pp_subanalysis_depressed <- "case_control_pp"
+  
+  pg_sensitivity <- "sensitivity_discrepancy_pg"
+  pp_sensitivity <- "sensitivity_discrepancy_pp"
   
   pg_confs <- c("v32_SSRI",
                 "im_fasting_sample",
@@ -35,24 +41,26 @@ CleanData <- function(){
   
   pp_confs <- c("im_sample_year_pp")
   
-  pg_sensitivity <- "sensitivity_discrepancy_pg"
-  pp_sensitivity <- "sensitivity_discrepancy_pp"
-  
-  # setting SSRI non-depressed people to missing
-  nrow(d[get(pg_depressed)==0 & exclude_SSRI_pg==1,])
-  d[get(pg_depressed)==0 & exclude_SSRI_pg==1,(pg_depressed):=NA]
-  nrow(d[get(pg_depressed)==0 & exclude_SSRI_pg==1,])
-  
-  nrow(d[get(pp_depressed)==0 & exclude_SSRI_pp==1,])
-  d[get(pp_depressed)==0 & exclude_SSRI_pp==1,(pp_depressed):=NA]
-  nrow(d[get(pp_depressed)==0 & exclude_SSRI_pp==1,])
+  # remove SSRI non-depressed people for subanalysis
+  xtabs(~d$case_control_pregnancy)
+  d[get(pg_subanalysis_depressed)==0 & exclude_SSRI_pg==1,(pg_subanalysis_depressed):=NA]
+  d[get(pp_subanalysis_depressed)==0 & exclude_SSRI_pp==1,(pp_subanalysis_depressed):=NA]
+  xtabs(~d$case_control_pregnancy)
   
   # wiping out missing people
   sum(d$im_participating_preg==1,na.rm=T)
   sum(d$im_participating_pp==1,na.rm=T)
   
-  for(i in c(pg_outcome_zscore,pg_depressed,pg_confs)) d[is.na(get(i)),im_participating_preg:=0]
-  for(i in c(pp_outcome_zscore,pp_depressed,pp_confs)) d[is.na(get(i)),im_participating_pp:=0]
+  for(i in c(
+    pg_outcome_zscore,
+    pg_confs,
+    pg_oversampling_main, 
+    pg_subanalysis_depressed)) d[is.na(get(i)),im_participating_preg:=0]
+  for(i in c(
+    pp_outcome_zscore,
+    pp_confs,
+    pp_oversampling_main, 
+    pp_subanalysis_depressed)) d[is.na(get(i)),im_participating_pp:=0]
   
   sum(d$im_participating_preg==1,na.rm=T)
   sum(d$im_participating_pp==1,na.rm=T)
@@ -62,8 +70,9 @@ CleanData <- function(){
     "CustomDataR",
     "im_sample_day_preg",
     pg_outcome_zscore,
-    pg_depressed,
     pg_confs,
+    pg_oversampling_main,
+    pg_subanalysis_depressed,
     pg_sensitivity,
     pg_ssri,
     "SIN_366_preg",
@@ -73,8 +82,9 @@ CleanData <- function(){
     "CustomDataR",
     "im_sample_day_pp",
     pp_outcome_zscore,
-    pp_depressed,
     pp_confs,
+    pp_oversampling_main,
+    pp_subanalysis_depressed,
     pp_sensitivity,
     pp_ssri,
     "SIN_366_pp",
@@ -149,16 +159,18 @@ CleanData <- function(){
   assign("pg", pg, envir=globalenv())
   assign("pg_ims", pg_ims, envir=globalenv())
   assign("pg_outcome_zscore", pg_outcome_zscore, envir=globalenv())
-  assign("pg_depressed", pg_depressed, envir=globalenv())
   assign("pg_confs", pg_confs, envir=globalenv())
+  assign("pg_oversampling_main", pg_oversampling_main, envir=globalenv())
+  assign("pg_subanalysis_depressed", pg_subanalysis_depressed, envir=globalenv())
   assign("pg_sensitivity", pg_sensitivity, envir=globalenv())
   assign("pg_ssri", pg_ssri, envir=globalenv())
   
   assign("pp", pp, envir=globalenv())
   assign("pp_ims", pp_ims, envir=globalenv())
   assign("pp_outcome_zscore", pp_outcome_zscore, envir=globalenv())
-  assign("pp_depressed", pp_depressed, envir=globalenv())
   assign("pp_confs", pp_confs, envir=globalenv())
+  assign("pp_oversampling_main", pp_oversampling_main, envir=globalenv())
+  assign("pp_subanalysis_depressed", pp_subanalysis_depressed, envir=globalenv())
   assign("pp_sensitivity", pp_sensitivity, envir=globalenv())
   assign("pp_ssri", pp_ssri, envir=globalenv()) 
 }

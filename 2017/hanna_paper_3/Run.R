@@ -1,3 +1,17 @@
+# main analysis
+# # adjusting on v32_oversampling, ppv6_EPDS_D_9R
+#
+# sens analysis (discrepancy analysis)
+# same as main analysis, but we exclude according to sensitivity_discrepancy_pg sensitivity_discrepancy_pp
+#
+# sub analysis
+# exclude non-depressed women on SSRIs
+# run stratified non-depressed - case_control_pregnancy/case_control_pp
+# dont adjust for v32_oversampling, ppv6_EPDS_D_9R
+#
+
+# put in more details in the details document
+
 org::AllowFileManipulationFromInitialiseProject()
 
 org::InitialiseProject(
@@ -7,6 +21,18 @@ org::InitialiseProject(
   SHARED = "/dropbox/clients/hanna/paper_3/richard/"
 )
 
+EncryptedExcel <- function(d,fileExcel,fileZip,password="richard321"){
+  x <- tempdir()
+  f <- file.path(x,fileExcel)
+  openxlsx::write.xlsx(d,
+                       f)
+  
+  unlink(fileZip)
+  Sys.sleep(1)
+  zip(fileZip, 
+      files=f, 
+      flags = paste("--password", password))
+}
 
 library(data.table)
 library(ggplot2)
@@ -15,18 +41,38 @@ library(ggplot2)
 CleanData()
 ls()
 
-openxlsx::write.xlsx(pg[,c(pg_depressed,pg_sensitivity,pg_confs,pg_ims),with=F],
-                     file.path(org::PROJ$CLEAN,"pg_selected_vars.xlsx"))
-openxlsx::write.xlsx(pg,
-                     file.path(org::PROJ$CLEAN,"pg.xlsx"))
+nrow(pg)
+nrow(pp)
 
-openxlsx::write.xlsx(pp[,c(pp_depressed,pp_sensitivity,pp_confs,pp_ims),with=F],
-                     file.path(org::PROJ$CLEAN,"pp_selected_vars.xlsx"))
-openxlsx::write.xlsx(pp,
-                     file.path(org::PROJ$CLEAN,"pp.xlsx"))
+xtabs(~pg$sensitivity_discrepancy_pg)
+xtabs(~pp$sensitivity_discrepancy_pp)
+
+EncryptedExcel(pg[,c(pg_oversampling_main,
+                     pg_subanalysis_depressed,
+                     pg_sensitivity,
+                     pg_confs,
+                     pg_ims),with=F],
+               fileExcel="pg_selected_vars.xlsx",
+               fileZip=file.path(org::PROJ$SHARED_TODAY,"pg_selected_vars.zip"))
+
+EncryptedExcel(pg,
+               fileExcel="pg_selected_vars.xlsx",
+               fileZip=file.path(org::PROJ$SHARED_TODAY,"pg.zip"))
+
+EncryptedExcel(pp[,c(pp_oversampling_main,
+                     pp_subanalysis_depressed,
+                     pp_sensitivity,
+                     pp_confs,
+                     pp_ims),with=F],
+               fileExcel="pp_selected_vars.xlsx",
+               fileZip=file.path(org::PROJ$SHARED_TODAY,"pp_selected_vars.zip"))
+
+EncryptedExcel(pp,
+               fileExcel="pp.xlsx",
+               fileZip=file.path(org::PROJ$SHARED_TODAY,"pp.zip"))
 
 
-sink(file.path(RAWmisc::PROJ$SHARED_TODAY,"std_dev_ims_pg_sensitivity_over_main.txt"))
+sink(file.path(org::PROJ$SHARED_TODAY,"std_dev_ims_pg_sensitivity_over_main.txt"))
 sd(pg$im_sample_day_preg)
 sd(pg[sensitivity_discrepancy_pg==1]$im_sample_day_preg)
 sink()
@@ -34,7 +80,7 @@ sink()
 length(pg_ims)
 length(pp_ims)
 
-sink(file.path(RAWmisc::PROJ$SHARED_TODAY,"SSRI_CROSSTABS.txt"))
+sink(file.path(org::PROJ$SHARED_TODAY,"SSRI_CROSSTABS.txt"))
 xtabs(~pg$v32_SSRI,addNA=T)
 xtabs(~pp$ppv6_SSRI,addNA=T)
 sink()
@@ -47,7 +93,7 @@ y <- merge(pg[,c("CustomDataR","zscorePG","im_sample_day_preg")],x[,c("CustomDat
 plot(y$zscorePG~y$zscoreNEWPG)
 cor(y$zscorePG,y$zscoreNEWPG)
 
-png(file.path(RAWmisc::PROJ$SHARED_TODAY,"lomb_scargle_periodogram_pg.png"),width=1000,height=600)
+png(file.path(org::PROJ$SHARED_TODAY,"lomb_scargle_periodogram_pg.png"),width=1000,height=600)
 lomb::lsp(as.matrix(na.omit(y[,c("im_sample_day_preg","zscoreNEWPG")])),type="period",from=30,to=500, ofac=20,alpha=0.05)
 dev.off()
 
@@ -59,14 +105,14 @@ q <- q + labs(y="Normalised power")
 q <- q + geom_hline(yintercept=LombScargle$sig.level, linetype="dashed")
 q <- q + scale_x_continuous("Period")
 q <- q + theme_gray(base_size=20)
-RAWmisc::saveA4(q,filename=file.path(RAWmisc::PROJ$SHARED_TODAY,"FIXED_lomb_scargle_periodogram_pg.png"))
+RAWmisc::saveA4(q,filename=file.path(org::PROJ$SHARED_TODAY,"FIXED_lomb_scargle_periodogram_pg.png"))
 
 
 y <- merge(pp[,c("CustomDataR","zscorePP","im_sample_day_pp")],x[,c("CustomDataR","zscoreNEWPP")],by="CustomDataR")
 plot(y$zscorePP~y$zscoreNEWPP)
 cor(y$zscorePP,y$zscoreNEWPP)
 
-png(file.path(RAWmisc::PROJ$SHARED_TODAY,"lomb_scargle_periodogram_pp.png"),width=1000,height=600)
+png(file.path(org::PROJ$SHARED_TODAY,"lomb_scargle_periodogram_pp.png"),width=1000,height=600)
 lomb::lsp(as.matrix(na.omit(y[,c("im_sample_day_pp","zscoreNEWPP")])),type="period",from=30,to=500, ofac=20,alpha=0.05)
 dev.off()
 
@@ -78,11 +124,12 @@ q <- q + labs(y="Normalised power")
 q <- q + geom_hline(yintercept=LombScargle$sig.level, linetype="dashed")
 q <- q + scale_x_continuous("Period")
 q <- q + theme_gray(base_size=20)
-RAWmisc::saveA4(q,filename=file.path(RAWmisc::PROJ$SHARED_TODAY,"FIXED_lomb_scargle_periodogram_pp.png"))
+RAWmisc::saveA4(q,filename=file.path(org::PROJ$SHARED_TODAY,"FIXED_lomb_scargle_periodogram_pp.png"))
 
 SeasonalAnalysis()
-SeasonalAnalysisWithInteraction()
-SeasonalAdjustedIMPredictingDepression()
+
+#SeasonalAnalysisWithInteraction()
+#SeasonalAdjustedIMPredictingDepression()
 
 
 # end?
@@ -101,9 +148,9 @@ for(i in 1:length(retval)){
 retval <- rbindlist(retval)
 retval <- RAWmisc::FormatResultsStack(retval,bonf=T,useWald = TRUE, useLRT=FALSE)
 
-dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,"code_check_depression_as_outcome_seasonal_adjusted"))
-openxlsx::write.xlsx(retval,file.path(RAWmisc::PROJ$SHARED_TODAY,"code_check_depression_as_outcome_seasonal_adjusted","pg.xlsx"))
-openxlsx::write.xlsx(stack_pg,file.path(RAWmisc::PROJ$SHARED_TODAY,"code_check_depression_as_outcome_seasonal_adjusted","pg_details.xlsx"))
+dir.create(file.path(org::PROJ$SHARED_TODAY,"code_check_depression_as_outcome_seasonal_adjusted"))
+openxlsx::write.xlsx(retval,file.path(org::PROJ$SHARED_TODAY,"code_check_depression_as_outcome_seasonal_adjusted","pg.xlsx"))
+openxlsx::write.xlsx(stack_pg,file.path(org::PROJ$SHARED_TODAY,"code_check_depression_as_outcome_seasonal_adjusted","pg_details.xlsx"))
 
 
 stack_pg <- RAWmisc::CreateStackSkeleton(n=length(pg_ims))
@@ -120,9 +167,9 @@ for(i in 1:length(retval)){
 retval <- rbindlist(retval)
 retval <- RAWmisc::FormatResultsStack(retval,bonf=T,useWald=TRUE, useLRT=FALSE)
 
-dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,"depression_as_outcome_abs_seasonal_difference"))
-openxlsx::write.xlsx(retval,file.path(RAWmisc::PROJ$SHARED_TODAY,"depression_as_outcome_abs_seasonal_difference","pg.xlsx"))
-openxlsx::write.xlsx(stack_pg,file.path(RAWmisc::PROJ$SHARED_TODAY,"depression_as_outcome_abs_seasonal_difference","pg_details.xlsx"))
+dir.create(file.path(org::PROJ$SHARED_TODAY,"depression_as_outcome_abs_seasonal_difference"))
+openxlsx::write.xlsx(retval,file.path(org::PROJ$SHARED_TODAY,"depression_as_outcome_abs_seasonal_difference","pg.xlsx"))
+openxlsx::write.xlsx(stack_pg,file.path(org::PROJ$SHARED_TODAY,"depression_as_outcome_abs_seasonal_difference","pg_details.xlsx"))
 
 stack_pp <- RAWmisc::CreateStackSkeleton(n=length(pp_ims))
 stack_pp$regressionType <- "logistic"
@@ -138,7 +185,7 @@ for(i in 1:length(retval)){
 retval <- rbindlist(retval)
 retval <- RAWmisc::FormatResultsStack(retval,bonf=TRUE,useWald=TRUE, useLRT=FALSE)
 
-openxlsx::write.xlsx(retval,file.path(RAWmisc::PROJ$SHARED_TODAY,"depression_as_outcome_abs_seasonal_difference","pp.xlsx"))
-openxlsx::write.xlsx(stack_pp,file.path(RAWmisc::PROJ$SHARED_TODAY,"depression_as_outcome_abs_seasonal_difference","pp_details.xlsx"))
+openxlsx::write.xlsx(retval,file.path(org::PROJ$SHARED_TODAY,"depression_as_outcome_abs_seasonal_difference","pp.xlsx"))
+openxlsx::write.xlsx(stack_pp,file.path(org::PROJ$SHARED_TODAY,"depression_as_outcome_abs_seasonal_difference","pp_details.xlsx"))
 
 

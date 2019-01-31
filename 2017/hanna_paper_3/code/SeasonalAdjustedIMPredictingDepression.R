@@ -1,5 +1,5 @@
 SeasonalAdjustedIMPredictingDepression <- function(){
-  dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,"depression_as_outcome_seasonal_adjusted"))
+  dir.create(file.path(org::PROJ$SHARED_TODAY,"depression_as_outcome_seasonal_adjusted"))
   
   sampleSize <- list()
   pg_retval <- pp_retval <- list()
@@ -22,7 +22,7 @@ SeasonalAdjustedIMPredictingDepression <- function(){
       seasonalvars <- "SIN_366_pp + COS_366_pp"
     }
     
-    fileConn<-file(file.path(RAWmisc::PROJ$SHARED_TODAY,
+    fileConn<-file(file.path(org::PROJ$SHARED_TODAY,
                              "depression_as_outcome_seasonal_adjusted",
                              sprintf("details_%s.txt",pgorpp)))
     writeLines(c(
@@ -94,6 +94,6 @@ SeasonalAdjustedIMPredictingDepression <- function(){
                           "oddsRatio_adj","p_adj","pbonf_adj"))
   
   
-  openxlsx::write.xlsx(pg_retval,file.path(RAWmisc::PROJ$SHARED_TODAY,"depression_as_outcome_seasonal_adjusted","pg.xlsx"))
-  openxlsx::write.xlsx(pp_retval,file.path(RAWmisc::PROJ$SHARED_TODAY,"depression_as_outcome_seasonal_adjusted","pp.xlsx"))
+  openxlsx::write.xlsx(pg_retval,file.path(org::PROJ$SHARED_TODAY,"depression_as_outcome_seasonal_adjusted","pg.xlsx"))
+  openxlsx::write.xlsx(pp_retval,file.path(org::PROJ$SHARED_TODAY,"depression_as_outcome_seasonal_adjusted","pp.xlsx"))
 }

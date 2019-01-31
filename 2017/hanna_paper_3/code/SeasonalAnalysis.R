@@ -1,40 +1,55 @@
 SeasonalAnalysis <- function(){
+
+  dir.create(file.path(org::PROJ$SHARED_TODAY,"main_graphs"))
   
-  for(sens in c("main_analysis","sens_analysis")){
-    dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,sens))
-    dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,sens,"scatter_plots"))
+  toPlotTotal <- vector("list",2)
+  for(sens in c("main_analysis","sens_analysis","sub_analysis")){
+    dir.create(file.path(org::PROJ$SHARED_TODAY,sens))
+    if(sens %in% c("main_analysis","sub_analysis")) dir.create(file.path(org::PROJ$SHARED_TODAY,sens,"scatter_plots"))
     
     sampleSize <- list()
     pg_retval <- pp_retval <- list()
     for(depressed in c("All","Depressed","Not-depressed"))  for(k in 1:2){
+      if(sens %in% "main_analysis" & depressed!="All") next
+      if(sens %in% "sens_analysis" & depressed!="All") next
+      if(sens %in% "sub_analysis" & depressed %in% c("All","Depressed")) next
+      
       if(k==1){
         pgorpp <- "pg"
         ims <- pg_ims
         confs <- pg_confs
-        dep <- pg_depressed
         data <- pg
+        oversampling <- pg_oversampling_main
+        dep <- pg_subanalysis_depressed
         sensitivity <- pg_sensitivity
         ssri <- pg_ssri
       } else if(k==2){
         pgorpp <- "pp"
         ims <- pp_ims
         confs <- pp_confs
-        dep <- pp_depressed
         data <- pp
+        oversampling <- pp_oversampling_main
+        dep <- pp_subanalysis_depressed
         sensitivity <- pp_sensitivity
         ssri <- pp_ssri
       }
       
+      # stratify data after depression if desired
       if(depressed=="Depressed"){
         data <- data[get(dep)==1]
       } else if(depressed=="Not-depressed"){
         data <- data[get(dep)==0]
-      } else {
-        confs <- c(confs,dep)
       }
+      
+      # exclude according to sensitivity if desired
       if(sens=="sens_analysis") data <- data[get(sensitivity)!=1]
       
-      fileConn<-file(file.path(RAWmisc::PROJ$SHARED_TODAY,
+      # include oversampling for main analysis
+      if(sens %in% c("main_analysis","sens_analysis") & depressed=="All"){
+        confs <- c(confs, oversampling)
+      }
+      
+      fileConn<-file(file.path(org::PROJ$SHARED_TODAY,
                                sens,
                                sprintf("details_%s_%s.txt",pgorpp,depressed)))
       writeLines(c(
@@ -98,7 +113,7 @@ SeasonalAnalysis <- function(){
     sampleSize <- rbindlist(sampleSize)
     setorder(sampleSize,pgorpp,depressed)
     
-    openxlsx::write.xlsx(sampleSize,file=file.path(RAWmisc::PROJ$SHARED_TODAY,sens,"samplesize.xlsx"))
+    openxlsx::write.xlsx(sampleSize,file=file.path(org::PROJ$SHARED_TODAY,sens,"samplesize.xlsx"))
     
     for(depressed in c("All","Depressed","Not-depressed")){
       pg_retval[[depressed]] <- rbindlist(pg_retval[[depressed]])
@@ -141,10 +156,8 @@ SeasonalAnalysis <- function(){
       tab[pbonf<"0.050",trough_to_peak_change:=sprintf("* %s",trough_to_peak_change)]
       
       tab <- dcast.data.table(tab,im~depressed,value.var = c("peak","trough","meanValueLog2","pseasonality","pbonf","trough_to_peak_change"))
-      openxlsx::write.xlsx(tab,file=file.path(RAWmisc::PROJ$SHARED_TODAY,sens,sprintf("table%s.xlsx",k+1)))
+      openxlsx::write.xlsx(tab,file=file.path(org::PROJ$SHARED_TODAY,sens,sprintf("table%s.xlsx",k+1)))
     }
-    
-    
     
     toPlot <- vector("list",2)
     for(k in 1:2){
@@ -206,165 +219,169 @@ SeasonalAnalysis <- function(){
       
       setorder(x,depressed,im,var)
       
-      openxlsx::write.xlsx(x,file=file.path(RAWmisc::PROJ$SHARED_TODAY,sens,sprintf("supp_table%s.xlsx",k)))
+      openxlsx::write.xlsx(x,file=file.path(org::PROJ$SHARED_TODAY,sens,sprintf("supp_table%s.xlsx",k)))
     }
     
     if(sens=="sens_analysis") next
     
     toPlot <- rbindlist(toPlot)
+    toPlot[,sens:=sens]
+    toPlotTotal[[sens]] <- toPlot
+  }
+  toPlotTotal <- rbindlist(toPlotTotal)
+  toPlot <- toPlotTotal
+  xtabs(~toPlot$depressed+toPlot$sens)
+  # PLOTTING
+  toPlot <- toPlot[var %in% c("sin366","cos366"),c("depressed","im","var","beta","pbonf"),with=F]
+  toPlot[,pbonf:=mean(pbonf,na.rm=T),by=.(depressed,im)]
     
-    # PLOTTING
-    toPlot <- toPlot[var %in% c("sin366","cos366"),c("depressed","im","var","beta","pbonf"),with=F]
-    toPlot[,pbonf:=mean(pbonf,na.rm=T),by=.(depressed,im)]
+  stack <- dcast.data.table(toPlot,depressed+im+pbonf~var, value.var="beta")
+  stack[,cos366:=as.numeric(cos366)]
+  stack[,sin366:=as.numeric(sin366)]
     
-    stack <- dcast.data.table(toPlot,depressed+im+pbonf~var, value.var="beta")
-    stack[,cos366:=as.numeric(cos366)]
-    stack[,sin366:=as.numeric(sin366)]
-    
-    data <- vector("list",length=nrow(stack))
-    for(i in 1:length(data)){
-      data[[i]] <- data.table(Depressed=stack$depressed[i],IF=stack$im[i],day=1:366,pbonf=stack$pbonf[i])
-      data[[i]][,y:=stack$cos366[i]*cos(2*pi*day/366) + stack$sin366[i]*sin(2*pi*day/366)]
-    }
-    
-    masterData <- rbindlist(data)
-    data <- rbindlist(data)[pbonf<0.05]
-    
-    data[,date:=as.Date("2016-12-31")+day]
-    data[,labels:=""]
-    data[IF %in% c(
-      "im_log2_101_IL_8_pg",
-      "im_log2_136_MCP_4_pp",
-      "im_log2_172_SIRT2_pg",
-      "im_log2_118_AXIN1_pg",
-      "im_log2_192_STAMPB_pg",
-      "im_log2_183_MCP_2_pg"),labels:=IF]
-    data[,labels:=stringr::str_replace(labels,"im_log2_[0-9][0-9][0-9]_","")]
-    unique(data$labels)
-    RAWmisc::RecodeDT(data,switch=c(
-      "IL_8_pg"="IL-8 (pregnancy)",
-      "AXIN1_pg"="AXIN1 (pregnancy)",
-      "MCP_4_pp"="MCP-4 (postpartum)",
-      "SIRT2_pg"="SIRT2 (pregnancy)",
-      "STAMPB_pg"="STAM-BP (pregnancy)"
-    ), var="labels")
-    unique(data$labels)
-    l <- unique(data$labels)
-    l_pp <- l[stringr::str_detect(l,"\\(postpartum\\)$")]
-    l_pg <- l[stringr::str_detect(l,"\\(pregnancy\\)$")]
-    data[,labels:=factor(labels,levels = c("zscorePG",l_pg,l_pp,""))]
-    
-    saveA4 <- function(q,filename,landscape=T){
-      ggsave(filename,plot=q,width=297,height=210, units="mm")
-    }
-    
-    plotData <- data[!IF %in% c("zscorePG","zscorePP") & Depressed!="Depressed"]
-    plotData[Depressed=="Not-depressed",Depressed:="No depressive symptoms"]
-    q <- ggplot(plotData, aes(x=date,y=y,group=IF))
-    q <- q + geom_line()
-    #q <- q + expand_limits(x=as.Date("2016-08-01"))
-    #q <- q + scale_colour_manual("",values=c("#e41a1c", "#377eb8", "#4daf4a", "#ff7f00", "#f781bf"))
-    #q <- q + scale_colour_brewer("",palette="Set2")
-    q <- q + scale_x_date("Day/month", labels = scales::date_format("%d/%m"),
-                          breaks=as.Date(c("2017-01-01",
-                                           "2017-03-01",
-                                           "2017-05-01",
-                                           "2017-07-01",
-                                           "2017-09-01",
-                                           "2017-11-01",
-                                           "2018-01-01")),
-                          minor_breaks=as.Date(c("2017-02-01",
-                                                 "2017-04-01",
-                                                 "2017-06-01",
-                                                 "2017-08-01",
-                                                 "2017-10-01",
-                                                 "2017-12-01",
-                                                 "2018-01-01")))
-    q <- q + scale_y_continuous("Change in NPX [log2(concentration)]")
-    q <- q + theme_gray(base_size=16)
-    q <- q + facet_wrap(~Depressed,ncol=1)
-    RAWmisc::saveA4(q,filename=file.path(RAWmisc::PROJ$SHARED_TODAY,sens,"figure_sig.png"))
-    
-    
-    
-    data <- masterData
-    data[y>1]
-    
-    data[,date:=as.Date("2016-12-31")+day]
-    
-    data[,labels:="Not significant PG"]
-    data[stringr::str_detect(IF,"_pp$"),labels:="Not significant PP"]
-    data[pbonf<0.05 & stringr::str_detect(IF,"_pg$"),labels:="Significant PG"]
-    data[pbonf<0.05 & stringr::str_detect(IF,"_pp$"),labels:="Significant PP"]
-    
-    plotData <- data[!IF %in% c("zscorePG","zscorePP") & Depressed!="Depressed"]
-    plotData[Depressed=="Not-depressed",Depressed:="No depressive symptoms"]
-    
-    q <- ggplot(as.data.frame(plotData[!IF %in% c("zscorePG","zscorePP")]), aes(x=date,y=y,group=IF,colour=labels))
-    q <- q + geom_line(data=plotData[labels %in% c("Not significant PG","Not significant PP") & !IF %in% c("zscorePG","zscorePP")],mapping=aes(colour=labels),lwd=0.25,alpha=0.5)
-    q <- q + geom_line(data=plotData[!labels %in% c("Not significant PG","Not significant PP") & !IF %in% c("zscorePG","zscorePP")],mapping=aes(colour=labels))
-    #q <- q + expand_limits(x=as.Date("2016-08-01"))
-    q <- q + scale_colour_manual("",values=c("black", "#377eb8", "#4daf4a", "#ff7f00", "#f781bf"))
-    #q <- q + scale_colour_brewer("",palette="Set2")
-    q <- q + scale_x_date("Day/month", labels = scales::date_format("%d/%m"),
-                          breaks=as.Date(c("2017-01-01",
-                                           "2017-03-01",
-                                           "2017-05-01",
-                                           "2017-07-01",
-                                           "2017-09-01",
-                                           "2017-11-01",
-                                           "2018-01-01")),
-                          minor_breaks=as.Date(c("2017-02-01",
-                                                 "2017-04-01",
-                                                 "2017-06-01",
-                                                 "2017-08-01",
-                                                 "2017-10-01",
-                                                 "2017-12-01",
-                                                 "2018-01-01")))
-    q <- q + scale_y_continuous("Change in NPX [log2(concentration)]")
-    q <- q + theme_gray(base_size=20)
-    q <- q + facet_wrap(~Depressed,ncol=1)
-    RAWmisc::saveA4(q,filename=file.path(RAWmisc::PROJ$SHARED_TODAY,sens,"figure_all.png"))
-    
-    
-    for(im in unique(data$IF)) for(dep in c("All","Depressed","Not-depressed")){
-      fitted <- data[Depressed==dep & IF==im]
-      if(fitted$pbonf[1]>0.05) next
-      
-      if(fitted$labels[1]=="Significant PG"){
-        pd <- pg[,c(im,"im_sample_day_preg",pg_depressed),with=F]
-        setnames(pd,c("NPX","day","depressed"))
-      } else if(fitted$labels[1]=="Significant PP"){
-        pd <- pp[,c(im,"im_sample_day_pp",pp_depressed),with=F]
-        setnames(pd,c("NPX","day","depressed"))
-      }
-      
-      if(dep=="Depressed"){
-        pd <- pd[depressed==1]
-      } else if(dep=="Not-depressed"){
-        pd <- pd[depressed==0]
-      }
-      
-      zeropoint <- c()
-      for(i in 0:8){
-        zeropoint <- c(zeropoint,mean(pd[day %in% (i*40+1):(i*40+40)]$NPX,na.rm=T))
-      }
-      zeropoint <- mean(zeropoint,na.rm=T)
-      zeropoint
-      mean(pd$NPX,na.rm=T)
-      
-      q <- ggplot()
-      q <- q + geom_point(data=pd,mapping=aes(x=day,y=NPX))
-      q <- q + stat_smooth(data=pd,mapping=aes(x=day,y=NPX),se=F,col="blue",lwd=1.5)
-      q <- q + geom_line(data=fitted,mapping=aes(x=day,y=y+zeropoint),col="red",lwd=1.5)
-      q <- q + scale_x_continuous("Day of year")
-      #q <- q + labs(title=sprintf("%s - %s",dep,im))
-      q <- q + theme_gray(base_size=20)
-      #q <- q + labs(caption="Red line = Cosine/Sine fit from regression models. Blue line = LOESS fit. ")
-      RAWmisc::saveA4(q,filename=file.path(RAWmisc::PROJ$SHARED_TODAY,sens,
-                                           "scatter_plots",
-                                           sprintf("%s_%s.png",dep,im)))
-    }
+  data <- vector("list",length=nrow(stack))
+  for(i in 1:length(data)){
+    data[[i]] <- data.table(Depressed=stack$depressed[i],IF=stack$im[i],day=1:366,pbonf=stack$pbonf[i])
+    data[[i]][,y:=stack$cos366[i]*cos(2*pi*day/366) + stack$sin366[i]*sin(2*pi*day/366)]
   }
   
+  masterData <- rbindlist(data)
+  data <- rbindlist(data)[pbonf<0.05]
+  
+  data[,date:=as.Date("2016-12-31")+day]
+  data[,labels:=""]
+  data[IF %in% c(
+    "im_log2_101_IL_8_pg",
+    "im_log2_136_MCP_4_pp",
+    "im_log2_172_SIRT2_pg",
+    "im_log2_118_AXIN1_pg",
+    "im_log2_192_STAMPB_pg",
+    "im_log2_183_MCP_2_pg"),labels:=IF]
+  data[,labels:=stringr::str_replace(labels,"im_log2_[0-9][0-9][0-9]_","")]
+  unique(data$labels)
+  RAWmisc::RecodeDT(data,switch=c(
+    "IL_8_pg"="IL-8 (pregnancy)",
+    "AXIN1_pg"="AXIN1 (pregnancy)",
+    "MCP_4_pp"="MCP-4 (postpartum)",
+    "SIRT2_pg"="SIRT2 (pregnancy)",
+    "STAMPB_pg"="STAM-BP (pregnancy)"
+  ), var="labels")
+  unique(data$labels)
+  l <- unique(data$labels)
+  l_pp <- l[stringr::str_detect(l,"\\(postpartum\\)$")]
+  l_pg <- l[stringr::str_detect(l,"\\(pregnancy\\)$")]
+  data[,labels:=factor(labels,levels = c("zscorePG",l_pg,l_pp,""))]
+  
+  saveA4 <- function(q,filename,landscape=T){
+    ggsave(filename,plot=q,width=297,height=210, units="mm")
+  }
+  
+  plotData <- data[!IF %in% c("zscorePG","zscorePP") & Depressed!="Depressed"]
+  plotData[Depressed=="Not-depressed",Depressed:="No depressive symptoms"]
+  q <- ggplot(plotData, aes(x=date,y=y,group=IF))
+  q <- q + geom_line()
+  #q <- q + expand_limits(x=as.Date("2016-08-01"))
+  #q <- q + scale_colour_manual("",values=c("#e41a1c", "#377eb8", "#4daf4a", "#ff7f00", "#f781bf"))
+  #q <- q + scale_colour_brewer("",palette="Set2")
+  q <- q + scale_x_date("Day/month", labels = scales::date_format("%d/%m"),
+                        breaks=as.Date(c("2017-01-01",
+                                         "2017-03-01",
+                                         "2017-05-01",
+                                         "2017-07-01",
+                                         "2017-09-01",
+                                         "2017-11-01",
+                                         "2018-01-01")),
+                        minor_breaks=as.Date(c("2017-02-01",
+                                               "2017-04-01",
+                                               "2017-06-01",
+                                               "2017-08-01",
+                                               "2017-10-01",
+                                               "2017-12-01",
+                                               "2018-01-01")))
+  q <- q + scale_y_continuous("Change in NPX [log2(concentration)]")
+  q <- q + theme_gray(base_size=16)
+  q <- q + facet_wrap(~Depressed,ncol=1)
+  RAWmisc::saveA4(q,filename=file.path(org::PROJ$SHARED_TODAY,"main_graphs","figure_sig.png"))
+  
+  
+    
+  data <- masterData
+  data[y>1]
+  
+  data[,date:=as.Date("2016-12-31")+day]
+  
+  data[,labels:="Not significant PG"]
+  data[stringr::str_detect(IF,"_pp$"),labels:="Not significant PP"]
+  data[pbonf<0.05 & stringr::str_detect(IF,"_pg$"),labels:="Significant PG"]
+  data[pbonf<0.05 & stringr::str_detect(IF,"_pp$"),labels:="Significant PP"]
+  
+  plotData <- data[!IF %in% c("zscorePG","zscorePP") & Depressed!="Depressed"]
+  plotData[Depressed=="Not-depressed",Depressed:="No depressive symptoms"]
+  
+  q <- ggplot(as.data.frame(plotData[!IF %in% c("zscorePG","zscorePP")]), aes(x=date,y=y,group=IF,colour=labels))
+  q <- q + geom_line(data=plotData[labels %in% c("Not significant PG","Not significant PP") & !IF %in% c("zscorePG","zscorePP")],mapping=aes(colour=labels),lwd=0.25,alpha=0.5)
+  q <- q + geom_line(data=plotData[!labels %in% c("Not significant PG","Not significant PP") & !IF %in% c("zscorePG","zscorePP")],mapping=aes(colour=labels))
+  #q <- q + expand_limits(x=as.Date("2016-08-01"))
+  q <- q + scale_colour_manual("",values=c("black", "#377eb8", "#4daf4a", "#ff7f00", "#f781bf"))
+  #q <- q + scale_colour_brewer("",palette="Set2")
+  q <- q + scale_x_date("Day/month", labels = scales::date_format("%d/%m"),
+                        breaks=as.Date(c("2017-01-01",
+                                         "2017-03-01",
+                                         "2017-05-01",
+                                         "2017-07-01",
+                                         "2017-09-01",
+                                         "2017-11-01",
+                                         "2018-01-01")),
+                        minor_breaks=as.Date(c("2017-02-01",
+                                               "2017-04-01",
+                                               "2017-06-01",
+                                               "2017-08-01",
+                                               "2017-10-01",
+                                               "2017-12-01",
+                                               "2018-01-01")))
+  q <- q + scale_y_continuous("Change in NPX [log2(concentration)]")
+  q <- q + theme_gray(base_size=20)
+  q <- q + facet_wrap(~Depressed,ncol=1)
+  RAWmisc::saveA4(q,filename=file.path(org::PROJ$SHARED_TODAY,"main_graphs","figure_all.png"))
+  
+  
+  for(im in unique(data$IF)) for(dep in c("All","Not-depressed")){
+    fitted <- data[Depressed==dep & IF==im]
+    if(fitted$pbonf[1]>0.05) next
+    
+    if(fitted$labels[1]=="Significant PG"){
+      pd <- pg[,c(im,"im_sample_day_preg",pg_subanalysis_depressed),with=F]
+      setnames(pd,c("NPX","day","depressed"))
+    } else if(fitted$labels[1]=="Significant PP"){
+      pd <- pp[,c(im,"im_sample_day_pp",pp_subanalysis_depressed),with=F]
+      setnames(pd,c("NPX","day","depressed"))
+    }
+    
+    if(dep=="Depressed"){
+      pd <- pd[depressed==1]
+    } else if(dep=="Not-depressed"){
+      pd <- pd[depressed==0]
+    }
+    
+    zeropoint <- c()
+    for(i in 0:8){
+      zeropoint <- c(zeropoint,mean(pd[day %in% (i*40+1):(i*40+40)]$NPX,na.rm=T))
+    }
+    zeropoint <- mean(zeropoint,na.rm=T)
+    zeropoint
+    mean(pd$NPX,na.rm=T)
+    
+    q <- ggplot()
+    q <- q + geom_point(data=pd,mapping=aes(x=day,y=NPX))
+    q <- q + stat_smooth(data=pd,mapping=aes(x=day,y=NPX),se=F,col="blue",lwd=1.5)
+    q <- q + geom_line(data=fitted,mapping=aes(x=day,y=y+zeropoint),col="red",lwd=1.5)
+    q <- q + scale_x_continuous("Day of year")
+    #q <- q + labs(title=sprintf("%s - %s",dep,im))
+    q <- q + theme_gray(base_size=20)
+    #q <- q + labs(caption="Red line = Cosine/Sine fit from regression models. Blue line = LOESS fit. ")
+    RAWmisc::saveA4(q,filename=file.path(org::PROJ$SHARED_TODAY,
+                                         ifelse(dep=="All","main_analysis","sub_analysis"),
+                                         "scatter_plots",
+                                         sprintf("%s_%s.png",dep,im)))
+  }
 }

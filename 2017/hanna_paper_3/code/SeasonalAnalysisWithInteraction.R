@@ -146,7 +146,7 @@
 # }
 
 SeasonalAnalysisWithInteraction <- function(){
-  dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,"main_analysis_interacting_with_depression"))
+  dir.create(file.path(org::PROJ$SHARED_TODAY,"main_analysis_interacting_with_depression"))
   for(an in c("pg","pp")){
     if(an=="pg"){
       stack <- RAWmisc::CreateStackSkeleton(n=length(pg_ims))
@@ -165,7 +165,7 @@ SeasonalAnalysisWithInteraction <- function(){
     }
     
     openxlsx::write.xlsx(stack,file=file.path(
-      RAWmisc::PROJ$SHARED_TODAY,
+      org::PROJ$SHARED_TODAY,
       "main_analysis_interacting_with_depression",
       sprintf("details_main_results_%s.xlsx",an)))
     
@@ -215,7 +215,7 @@ SeasonalAnalysisWithInteraction <- function(){
     }
     
     openxlsx::write.xlsx(stack,file=file.path(
-      RAWmisc::PROJ$SHARED_TODAY,
+      org::PROJ$SHARED_TODAY,
       "main_analysis_interacting_with_depression",
       sprintf("details_interactions_%s.xlsx",an)))
     
@@ -245,7 +245,7 @@ SeasonalAnalysisWithInteraction <- function(){
     retval[,trough_to_peak_change:=sprintf("%s%%",RAWmisc::Format(trough_to_peak_change,0))]
     
     openxlsx::write.xlsx(retval,file=file.path(
-      RAWmisc::PROJ$SHARED_TODAY,
+      org::PROJ$SHARED_TODAY,
       "main_analysis_interacting_with_depression",
       sprintf("results_%s.xlsx",an)))
   }
