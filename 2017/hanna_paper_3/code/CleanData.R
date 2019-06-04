@@ -1,5 +1,12 @@
 CleanData <- function(){
   
+  EPDS_merged <- data.table(haven::read_spss(file.path(org::PROJ$RAW,"EPDS_merged.sav")))
+  EPDS_merged[,kontinuerlig_EPDS_merged_D_0_11_vs_12p:=kontinuerlig_EPDS_merged<=11]
+  
+  xtabs(~kontinuerlig_EPDS_merged+kontinuerlig_EPDS_merged_D,data=EPDS_merged)
+  xtabs(~kontinuerlig_EPDS_merged+kontinuerlig_EPDS_merged_D_0_11_vs_12p,data=EPDS_merged)
+  
+  EPDS_merged_pp <- data.table(haven::read_spss(file.path(org::PROJ$RAW,"EPDS_merged_pp.sav")))
   addedPG <- data.table(haven::read_spss(file.path(org::PROJ$RAW,"final_preg_180308.sav")))
   addedPP <- data.table(haven::read_spss(file.path(org::PROJ$RAW,"final_pp_180308.sav")))
   addedPG[is.na(sensitivity_discrepancy),sensitivity_discrepancy:=0]
@@ -20,14 +27,22 @@ CleanData <- function(){
   d <- merge(d,addedPP,by="CustomDataR",all.x=T)
   nrow(d)
   
+  nrow(d)
+  d <- merge(d,EPDS_merged,by="CustomDataR",all.x=T)
+  nrow(d)
+  
+  nrow(d)
+  d <- merge(d,EPDS_merged_pp,by="CustomDataR",all.x=T)
+  nrow(d)
+  
   pg_outcome_zscore <- "zscorePG"
   pp_outcome_zscore <- "zscorePP"
   
   pg_ssri <- "v32_SSRI"
   pp_ssri <- "ppv6_SSRI"
   
-  pg_oversampling_main <- "v32_oversampling"
-  pp_oversampling_main <- "ppv6_EPDS_D_9R"
+  pg_oversampling_main <- "kontinuerlig_EPDS_merged_D_0_11_vs_12p"
+  pp_oversampling_main <- "ppv6_EPDS_D_9R_190202"
   
   pg_subanalysis_depressed <- "case_control_pregnancy"
   pp_subanalysis_depressed <- "case_control_pp"
@@ -54,13 +69,11 @@ CleanData <- function(){
   for(i in c(
     pg_outcome_zscore,
     pg_confs,
-    pg_oversampling_main, 
-    pg_subanalysis_depressed)) d[is.na(get(i)),im_participating_preg:=0]
+    pg_oversampling_main)) d[is.na(get(i)),im_participating_preg:=0]
   for(i in c(
     pp_outcome_zscore,
     pp_confs,
-    pp_oversampling_main, 
-    pp_subanalysis_depressed)) d[is.na(get(i)),im_participating_pp:=0]
+    pp_oversampling_main)) d[is.na(get(i)),im_participating_pp:=0]
   
   sum(d$im_participating_preg==1,na.rm=T)
   sum(d$im_participating_pp==1,na.rm=T)

@@ -16,10 +16,13 @@ org::AllowFileManipulationFromInitialiseProject()
 
 org::InitialiseProject(
   HOME = "/git/code_minor/2017/hanna_paper_3/",
-  RAW = "/Volumes/crypt_data/org//data_raw/code_minor/2017/hanna_paper_3/",
-  CLEAN = "/Volumes/crypt_data/org//data_clean/code_minor/2017/hanna_paper_3/",
+  RAW = "/data/org/data_raw/code_minor/2017/hanna_paper_3/",
+  CLEAN = "/data/org/data_clean/code_minor/2017/hanna_paper_3/",
   SHARED = "/dropbox/clients/hanna/paper_3/richard/"
 )
+
+library(data.table)
+library(ggplot2)
 
 EncryptedExcel <- function(d,fileExcel,fileZip,password="richard321"){
   x <- tempdir()
@@ -33,9 +36,6 @@ EncryptedExcel <- function(d,fileExcel,fileZip,password="richard321"){
       files=f, 
       flags = paste("--password", password))
 }
-
-library(data.table)
-library(ggplot2)
 
 
 CleanData()

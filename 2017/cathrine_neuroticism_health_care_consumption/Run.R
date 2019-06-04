@@ -1,4 +1,9 @@
-RAWmisc::InitialiseOpinionatedUnix(project="code_minor/2017/cathrine_neuroticism_health_care_consumption/")
+org::AllowFileManipulationFromInitialiseProject()
+org::InitialiseProject(
+  HOME = "/git/code_minor/2017/cathrine_neuroticism_health_care_consumption/",
+  RAW = "/data/org/data_raw/code_minor/2017/cathrine_neuroticism_health_care_consumption/",
+  SHARED = "/dropbox/analyses/results_shared/code_minor/2017/cathrine_neuroticism_health_care_consumption/"
+)
 
 # *Neuroticism health care consumption*
 #   
@@ -49,12 +54,12 @@ library(ggplot2)
 library(rms)
 
 d <- data.table(haven::read_sav(file.path(
-  RAWmisc::PROJ$RAW,"Neuroticism_health_consumption_180328.sav"
+  org::PROJ$RAW,"Neuroticism_health_consumption_180328.sav"
 )))
 setnames(d,"Graviditetsår","Graviditetsar")
 
-dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,"tables"))
-dir.create(file.path(RAWmisc::PROJ$SHARED_TODAY,"figures"))
+dir.create(file.path(org::PROJ$SHARED_TODAY,"tables"))
+dir.create(file.path(org::PROJ$SHARED_TODAY,"figures"))
 
 nrow(d)
 d <- d[Include_new_CA==1]
@@ -205,7 +210,7 @@ stack_linear_without_graviditetsar$graphExposureLocationsLabels <- list(graphExp
 stack_linear_without_graviditetsar$graphExposureLocations <- list(graphExposureLocationsLinear)
 stack_linear_without_graviditetsar$graphTitleMain <- ""#stack_linear_without_graviditetsar$outcome
 stack_linear_without_graviditetsar$graphTitleX <- "Neuroticism"
-stack_linear_without_graviditetsar$graphFileName <- sprintf("%s/figures/linear_%s_without_graviditetsar.png",RAWmisc::PROJ$SHARED_TODAY,stack_linear_without_graviditetsar$outcome)
+stack_linear_without_graviditetsar$graphFileName <- sprintf("%s/figures/linear_%s_without_graviditetsar.png",org::PROJ$SHARED_TODAY,stack_linear_without_graviditetsar$outcome)
 
 stack_spline_without_graviditetsar$graphExposureScaleMultiply <- iqr
 stack_spline_without_graviditetsar$graphExposureScaleAdd <- p25
@@ -214,7 +219,7 @@ stack_spline_without_graviditetsar$graphExposureLocationsLabels <- list(graphExp
 stack_spline_without_graviditetsar$graphExposureLocations <- list(graphExposureLocationsSpline)
 stack_spline_without_graviditetsar$graphTitleMain <- ""#stack_spline_without_graviditetsar$outcome
 stack_spline_without_graviditetsar$graphTitleX <- "Neuroticism"
-stack_spline_without_graviditetsar$graphFileName <- sprintf("%s/figures/spline_%s_without_graviditetsar.png",RAWmisc::PROJ$SHARED_TODAY,stack_spline_without_graviditetsar$outcome)
+stack_spline_without_graviditetsar$graphFileName <- sprintf("%s/figures/spline_%s_without_graviditetsar.png",org::PROJ$SHARED_TODAY,stack_spline_without_graviditetsar$outcome)
 # fin
 
 
@@ -246,7 +251,7 @@ spline_or_linear <- merge(a,b,by="outcome")
 spline_or_linear[,aic_linear_minus_spline:=a_linear_aic-a_spline_aic]
 spline_or_linear[,exposure:=ifelse(aic_linear_minus_spline>3,"0 to 1, splines::ns(IQR_Neuroticism_CA,df=4)","IQR_Neuroticism_CA")]
 
-openxlsx::write.xlsx(spline_or_linear,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","table2_without_gravidetetsar_spline_or_linear.xlsx"))
+openxlsx::write.xlsx(spline_or_linear,file.path(org::PROJ$SHARED_TODAY,"tables","table2_without_gravidetetsar_spline_or_linear.xlsx"))
 
 # use table 2 to establish the desired linear/splines
 retval <- rbindlist(retval)
@@ -272,8 +277,8 @@ retval_without_graviditetsar[,stack_name:=NULL]
 retval_with_graviditetsar <- RAWmisc::FormatResultsStack(retval_with_graviditetsar,bonf=F,useWald = FALSE, useLRT=TRUE)
 retval_without_graviditetsar <- RAWmisc::FormatResultsStack(retval_without_graviditetsar,bonf=F,useWald = FALSE, useLRT=TRUE)
 
-openxlsx::write.xlsx(retval_with_graviditetsar,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","table3_results_with_graviditetsar.xlsx"))
-openxlsx::write.xlsx(retval_without_graviditetsar,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","table3_results_without_graviditetsar.xlsx"))
+openxlsx::write.xlsx(retval_with_graviditetsar,file.path(org::PROJ$SHARED_TODAY,"tables","table3_results_with_graviditetsar.xlsx"))
+openxlsx::write.xlsx(retval_without_graviditetsar,file.path(org::PROJ$SHARED_TODAY,"tables","table3_results_without_graviditetsar.xlsx"))
 
 for(stack_name in c(
   "stack_linear_with_graviditetsar",
@@ -281,7 +286,7 @@ for(stack_name in c(
   "stack_spline_with_graviditetsar",
   "stack_spline_without_graviditetsar"
 )){
-  openxlsx::write.xlsx(get(stack_name),file.path(RAWmisc::PROJ$SHARED_TODAY,"tables",sprintf("details_table3_%s.xlsx",stack_name)))
+  openxlsx::write.xlsx(get(stack_name),file.path(org::PROJ$SHARED_TODAY,"tables",sprintf("details_table3_%s.xlsx",stack_name)))
 }
 
 ### extracting full results for table 3s
@@ -303,7 +308,7 @@ for(stack_name in c(
   retval[,stack_name:=stack_name]
   
   openxlsx::write.xlsx(retval,file.path(
-    RAWmisc::PROJ$SHARED_TODAY,
+    org::PROJ$SHARED_TODAY,
     "tables",
     sprintf("table3_confounders_%s.xlsx",stringr::str_remove(stack_name,"stack_"))))
 }
@@ -324,8 +329,8 @@ for(i in 1:length(retval)){
 }
 retval <- rbindlist(retval)
 
-openxlsx::write.xlsx(stack_interaction,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","details_interaction_age_prenatal_diagnostics_ca.xlsx"))
-openxlsx::write.xlsx(retval,file.path(RAWmisc::PROJ$SHARED_TODAY,"tables","interaction_age_prenatal_diagnostics_ca.xlsx"))
+openxlsx::write.xlsx(stack_interaction,file.path(org::PROJ$SHARED_TODAY,"tables","details_interaction_age_prenatal_diagnostics_ca.xlsx"))
+openxlsx::write.xlsx(retval,file.path(org::PROJ$SHARED_TODAY,"tables","interaction_age_prenatal_diagnostics_ca.xlsx"))
 
 
 ### interactions with c("Age_3_CA","Education_CA","Country_CA")
@@ -355,12 +360,12 @@ for(varInteract in c("Age_3_CA","Education_CA","Country_CA")) for(x in c("with_g
   retval <- rbindlist(retval)
   
   openxlsx::write.xlsx(stack_interaction,file.path(
-    RAWmisc::PROJ$SHARED_TODAY,
+    org::PROJ$SHARED_TODAY,
     "tables",
     sprintf("details_table4_interaction_%s_%s.xlsx",x,varInteract)))
   
   openxlsx::write.xlsx(retval,file.path(
-    RAWmisc::PROJ$SHARED_TODAY,
+    org::PROJ$SHARED_TODAY,
     "tables",
     sprintf("table4_interaction_%s_%s.xlsx",x,varInteract)))
 }  
@@ -388,12 +393,12 @@ for(lev in na.omit(unique(d$Country_CA))) for(x in c("with_graviditetsar","witho
   retval <- rbindlist(retval)
   
   openxlsx::write.xlsx(stack_interaction,file.path(
-    RAWmisc::PROJ$SHARED_TODAY,
+    org::PROJ$SHARED_TODAY,
     "tables",
     sprintf("details_table5_interaction_%s_%s=%s.xlsx",x,varInteract,lev)))
   
   openxlsx::write.xlsx(retval,file.path(
-    RAWmisc::PROJ$SHARED_TODAY,
+    org::PROJ$SHARED_TODAY,
     "tables",
     sprintf("table5_interaction_%s_%s=%s.xlsx",x,varInteract,lev)))
 }  
@@ -456,6 +461,9 @@ lmtest::lrtest(f1,f0)
 stack_interaction[stack_interaction$outcome=="Midwife_ObGyn_phone_visits_CA",]
 retval[outcome=="Midwife_ObGyn_phone_visits_CA"]$a_p_lrt
 
+### Random questions from peer reviewers 2019-05-14
+
+#lm(IQR_Neuroticism_CA~, data=d)
 
 
 

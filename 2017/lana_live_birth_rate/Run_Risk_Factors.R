@@ -1,4 +1,9 @@
-org::InitialiseOpinionatedUnix("/code_minor/2017/lana_live_birth_rate/")
+org::AllowFileManipulationFromInitialiseProject()
+org::InitialiseProject(
+  HOME = "/git/code_minor/2017/lana_live_birth_rate/",
+  RAW = "/data/org/data_raw/code_minor/2017/lana_live_birth_rate/",
+  SHARED = "/dropbox/analyses/results_shared/code_minor/2017/lana_live_birth_rate/"
+)
 
 library(data.table)
 library(ggplot2)
@@ -485,8 +490,8 @@ models1[[modelsIndex]] <- data.frame(
   "family"="quasipoisson",
   stringsAsFactors = FALSE)
   
-retval0 <- vector("list",length=1000)
-retval1 <- vector("list",length=1000)
+retval0 <- vector("list",length=10)
+retval1 <- vector("list",length=10)
 predictiveAbility <- vector("list",length=1000)
 index <- 1
 for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsIndex){
@@ -497,6 +502,11 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
   protectiveFactors <- c()
   
   if(denominator=="denominator_asp_egg" & outcome=="ASP_EGG") next
+  
+  print("*")
+  print(index)
+  print(denominator)
+  print(outcome)
   
   for(datasource in c("L","A")){
     if(datasource=="L"){
@@ -518,7 +528,7 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
     
     explan <- vector("list",length=length(exposures))
     
-    formulaFull <- sprintf("%s~%s",outcome,paste0(exposures,collapse="+"))
+    formulaFull <- sprintf("%s~%s %s",outcome,OFFSET,paste0(exposures,collapse="+"))
     
     fitFull <- tryCatch({
       if(denominator=="denominator_asp_egg"){
@@ -582,7 +592,7 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
           Intp <- 1
           try({
             if(!is.null(fit1x) & !is.null(fit0x)){
-              pc <- mice::pool.compare(fit1x, fit0x, method="Wald")
+              pc <- mice::pool.compare(fit1x, fit0x, method="wald")
               Intp <- as.numeric(pc$pvalue)
             }
           }, TRUE)
@@ -692,7 +702,7 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
     Cp <- 1
     try({
       if(!is.null(fit1) & !is.null(fit0)){
-        pc <- mice::pool.compare(fit1, fit0, method="Wald")
+        pc <- mice::pool.compare(fit1, fit0, method="wald")
         Cp <- as.numeric(pc$pvalue)
       }
     }, TRUE)
@@ -728,7 +738,7 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
     IntP <- 1
     try({
       if(!is.null(fit1) & !is.null(fit0)){
-        pc <- mice::pool.compare(fit1, fit0, method="Wald")
+        pc <- mice::pool.compare(fit1, fit0, method="wald")
         IntP <- as.numeric(pc$pvalue)
       }
     }, TRUE)
@@ -744,8 +754,8 @@ for(denominator in c("no_denominator","denominator_asp_egg")) for(i in 1:modelsI
     retval[1,var:="0"]
     retval[1,crude:="1 (ref)"]
     retval1[[index]] <- retval
-    index <- index + 1
   }
+  index <- index + 1
 }
 
 retval1 <- rbindlist(retval1)
@@ -804,6 +814,40 @@ ExtractInteractedEffectEstimates <- function (beta, va, nameBase, nameInteractio
   return(list(beta = beta, se = se, p = p))
 }
 
+
+ExtractBMIAtDifferentAFCLevels <- function(fit){
+  
+  est <- vector("list",100)
+  index <- 1
+  for(i in seq_along(est)){
+    for(riskFactors in c(1:1)){
+      Q <- U <- c()
+      for(j in 1:20){
+        f <- fit$analyses[[j]]
+        
+        beta=t(coef(f))
+        names(beta) <- names(coef(f))
+        
+        val <- ExtractInteractedEffectEstimates(beta=beta,
+                                                va=vcov(f),
+                                                nameBase="BMI",
+                                                nameInteractions="BMI:AFC_TOTAL",
+                                                interactionValue=i)
+        Q <- c(Q,val$beta[2])
+        U <- c(U,val$se[2]^2)
+      }
+      r <- mice::pool.scalar(Q,U)
+      b <- exp(r$qbar)
+      l95 <- exp(r$qbar-1.96*sqrt(r$t))
+      u95 <- exp(r$qbar+1.96*sqrt(r$t))
+      est[[index]] <- data.frame(b,l95,u95,afc_total=as.numeric(i),riskFactors=riskFactors)
+      index <- index+1
+    }
+  }
+  
+  est <- rbindlist(est)
+  return(est)
+}
 
 
 est <- vector("list",40)
@@ -888,3 +932,236 @@ res <- res[var!="(Intercept)",c("var","IRR","l95","u95","Pr(>|t|)")]
 print(res)
 openxlsx::write.xlsx(res,file.path(org::PROJ$SHARED_TODAY,"SENSITIVITY_UNDER25thPERCENTILE_AFC.xlsx"))
 
+
+## reviewer questions 2019-05-19
+
+# NUMBER ASP_EGG
+reviewer <- masterlana[!is.na(ASP_EGG),c(
+  "ASP_EGG",
+  "AFC_TOTAL",
+  "AMH",
+  variablesFirst,
+  "FSH_totaldose",
+  "IVF_1_protokol"
+ ),with=F]
+reviewer[,protocol_agonist:=as.logical(NA)]
+reviewer[IVF_1_protokol==1,protocol_agonist:=T]
+reviewer[IVF_1_protokol==2,protocol_agonist:=F]
+reviewer[,IVF_1_protokol:=NULL]
+reviewer[,FSH_totaldose_per1000:=FSH_totaldose/1000]
+reviewer[,FSH_totaldose:=NULL]
+reviewer_imp <- mice::mice(reviewer, m=20, method="pmm", seed=4)
+
+fit <- with(reviewer_imp,glm(ASP_EGG~X_AGE+BMI+SMOKE_EVER+alcohol+caffeine_daily+PAL_total+depression_ever+FSH_totaldose_per1000+protocol_agonist,family=poisson))
+#fit <- with(reviewer_imp,glm(ASP_EGG~X_AGE+BMI+SMOKE_EVER+alcohol+caffeine_daily+PAL_total+depression_ever,family=poisson))
+#fit <- with(ldata[["ASP_EGG"]],glm(ASP_EGG~X_AGE+BMI+SMOKE_EVER+alcohol+caffeine_daily+PAL_total+depression_ever,family=poisson))
+x <- data.frame(summary(pool(fit)))
+x$sig <- ""
+x$sig[x$p.value<0.05] <- "*"
+x$L_adjustedlarge <- glue::glue("{x1} ({y}, {z}){w}",
+                                x1=RAWmisc::Format(exp(x$estimate)),
+                                y=RAWmisc::Format(exp(x$estimate-1.96*x$std.error)),
+                                z=RAWmisc::Format(exp(x$estimate+1.96*x$std.error)),
+                                w=ifelse(x$p.value<0.05,"*","")
+)
+x$L_adjustedlarge_P <- RAWmisc::Format(x$p.value,3)
+x$var <- row.names(x)
+x <- x[x$var!="(Intercept)",c("var","L_adjustedlarge","L_adjustedlarge_P")]
+
+oldres <- readxl::read_excel(fs::path(org::PROJ$SHARED_TODAY,"no_denominator_regressions_ASP_EGG.xlsx"))
+oldres <- oldres[,c("var","L_crude","L_Cp","L_adjusted","L_Ap")]
+
+tot <- merge(oldres,x,by="var",all=T)
+tot
+
+openxlsx::write.xlsx(tot,fs::path(org::PROJ$SHARED_TODAY,"sensitivity_including_fsh_protocol_no_denominator_regressions_ASP_EGG.xlsx"))
+
+# NUMBER n_mature_egg
+reviewer <- masterlana[!is.na(n_mature_egg),c(
+  "n_mature_egg",
+  "AFC_TOTAL",
+  "AMH",
+  variablesFirst,
+  "FSH_totaldose",
+  "IVF_1_protokol"
+  ),with=F]
+reviewer[,protocol_agonist:=as.logical(NA)]
+reviewer[IVF_1_protokol==1,protocol_agonist:=T]
+reviewer[IVF_1_protokol==2,protocol_agonist:=F]
+reviewer[,IVF_1_protokol:=NULL]
+reviewer[,FSH_totaldose_per1000:=FSH_totaldose/1000]
+reviewer[,FSH_totaldose:=NULL]
+reviewer_imp <- mice::mice(reviewer, m=20, method="pmm", seed=4)
+
+fit <- with(reviewer_imp,glm(n_mature_egg~X_AGE+BMI+SMOKE_EVER+alcohol+caffeine_daily+PAL_total+depression_ever+FSH_totaldose_per1000+protocol_agonist,family=poisson))
+x <- data.frame(summary(pool(fit)))
+x$sig <- ""
+x$sig[x$p.value<0.05] <- "*"
+x$L_adjustedlarge <- glue::glue("{x1} ({y}, {z}){w}",
+                                x1=RAWmisc::Format(exp(x$estimate)),
+                                y=RAWmisc::Format(exp(x$estimate-1.96*x$std.error)),
+                                z=RAWmisc::Format(exp(x$estimate+1.96*x$std.error)),
+                                w=ifelse(x$p.value<0.05,"*","")
+)
+x$L_adjustedlarge_P <- RAWmisc::Format(x$p.value,3)
+x$var <- row.names(x)
+x <- x[x$var!="(Intercept)",c("var","L_adjustedlarge","L_adjustedlarge_P")]
+
+oldres <- readxl::read_excel(fs::path(org::PROJ$SHARED_TODAY,"no_denominator_regressions_n_mature_egg.xlsx"))
+oldres <- oldres[,c("var","L_crude","L_Cp","L_adjusted","L_Ap")]
+
+tot <- merge(oldres,x,by="var",all=T)
+tot
+
+openxlsx::write.xlsx(tot,fs::path(org::PROJ$SHARED_TODAY,"sensitivity_including_fsh_protocol_no_denominator_regressions_n_mature_egg.xlsx"))
+
+# "Mature oocytes per aspirated oocytes"
+reviewer <- masterlana[,c(
+  "n_mature_egg",
+  "ASP_EGG",
+  "AFC_TOTAL",
+  "AMH",
+  variablesFirst,
+  "FSH_totaldose",
+  "IVF_1_protokol"
+  ),with=F]
+reviewer[,protocol_agonist:=as.logical(NA)]
+reviewer[IVF_1_protokol==1,protocol_agonist:=T]
+reviewer[IVF_1_protokol==2,protocol_agonist:=F]
+reviewer[,IVF_1_protokol:=NULL]
+reviewer[,FSH_totaldose_per1000:=FSH_totaldose/1000]
+reviewer[,FSH_totaldose:=NULL]
+reviewer_imp <- mice::mice(reviewer, m=20, method="pmm", seed=4)
+
+fit <- with(reviewer_imp,
+            glm(
+              n_mature_egg~offset(log(ASP_EGG))+X_AGE+BMI+SMOKE_EVER+alcohol+caffeine_daily+PAL_total+depression_ever+FSH_totaldose_per1000+protocol_agonist,
+              family=quasipoisson,
+              subset=(ASP_EGG>0)
+              )
+            )
+x <- data.frame(summary(pool(fit)))
+x$sig <- ""
+x$sig[x$p.value<0.05] <- "*"
+x$L_adjustedlarge <- glue::glue("{x1} ({y}, {z}){w}",
+                                x1=RAWmisc::Format(exp(x$estimate)),
+                                y=RAWmisc::Format(exp(x$estimate-1.96*x$std.error)),
+                                z=RAWmisc::Format(exp(x$estimate+1.96*x$std.error)),
+                                w=ifelse(x$p.value<0.05,"*","")
+)
+x$L_adjustedlarge_P <- RAWmisc::Format(x$p.value,3)
+x$var <- row.names(x)
+x <- x[x$var!="(Intercept)",c("var","L_adjustedlarge","L_adjustedlarge_P")]
+
+oldres <- readxl::read_excel(fs::path(org::PROJ$SHARED_TODAY,"denominator_asp_egg_regressions_n_mature_egg.xlsx"))
+oldres <- oldres[,c("var","L_crude","L_Cp","L_adjusted","L_Ap")]
+
+tot <- merge(oldres,x,by="var",all=T)
+tot
+
+openxlsx::write.xlsx(tot,fs::path(org::PROJ$SHARED_TODAY,"sensitivity_including_fsh_protocol_denominator_asp_egg_regressions_n_mature_egg.xlsx"))
+
+## checking interaction
+
+# crude
+fit <- with(ldata[["n_mature_egg"]],
+            glm(
+              n_mature_egg~offset(log(ASP_EGG))+X_AGE+BMI*AFC_TOTAL,
+              family=quasipoisson,
+              subset=(ASP_EGG>0)
+            )
+)
+x <- data.frame(summary(pool(fit)))
+x
+
+fit <- with(data[["n_mature_egg"]],
+            glm(
+              n_mature_egg~offset(log(ASP_EGG))+X_AGE+BMI*AFC_TOTAL,
+              family=quasipoisson,
+              subset=(ASP_EGG>0)
+            )
+)
+x <- data.frame(summary(pool(fit)))
+x
+
+#adjusted
+fit <- with(ldata[["n_mature_egg"]],
+            glm(
+              n_mature_egg~offset(log(ASP_EGG))+X_AGE+BMI*AFC_TOTAL+SMOKE_EVER+alcohol+caffeine_daily+PAL_total+depression_ever,
+              family=quasipoisson,
+              subset=(ASP_EGG>0)
+            )
+)
+x <- data.frame(summary(pool(fit)))
+x
+ExtractBMIAtDifferentAFCLevels(fit)
+
+fit <- with(data[["n_mature_egg"]],
+            glm(
+              n_mature_egg~offset(log(ASP_EGG))+X_AGE+BMI*AFC_TOTAL+SMOKE_EVER+alcohol+caffeine_daily+PAL_total+depression_ever,
+              family=quasipoisson,
+              subset=(ASP_EGG>0)
+            )
+)
+x <- data.frame(summary(pool(fit)))
+x
+ExtractBMIAtDifferentAFCLevels(fit)
+
+fit <- with(reviewer_imp,
+            glm(
+              n_mature_egg~offset(log(ASP_EGG))+X_AGE+BMI*AFC_TOTAL+SMOKE_EVER+alcohol+caffeine_daily+PAL_total+depression_ever,
+              family=quasipoisson,
+              subset=(ASP_EGG>0)
+            )
+)
+x <- data.frame(summary(pool(fit)))
+x
+
+########### AFTER MOZ
+
+# crude
+# lifestyle (lana)
+fit <- with(ldata[["n_mature_egg"]],
+            glm(
+              n_mature_egg~offset(log(ASP_EGG))+BMI*AFC_TOTAL,
+              family=quasipoisson,
+              subset=(ASP_EGG>0)
+            )
+)
+x <- data.frame(summary(pool(fit)))
+x
+
+# uppstart
+fit <- with(data[["n_mature_egg"]],
+            glm(
+              n_mature_egg~offset(log(ASP_EGG))+BMI*AFC_TOTAL,
+              family=quasipoisson,
+              subset=(ASP_EGG>0)
+            )
+)
+x <- data.frame(summary(pool(fit)))
+x
+
+
+# adjusted
+# lifestyle (lana)
+fit <- with(ldata[["n_mature_egg"]],
+            glm(
+              n_mature_egg~offset(log(ASP_EGG))+BMI*AFC_TOTAL+X_AGE+SMOKE_EVER+alcohol+caffeine_daily+PAL_total+depression_ever,
+              family=quasipoisson,
+              subset=(ASP_EGG>0)
+            )
+)
+x <- data.frame(summary(pool(fit)))
+x
+
+# uppstart
+fit <- with(data[["n_mature_egg"]],
+            glm(
+              n_mature_egg~offset(log(ASP_EGG))+BMI*AFC_TOTAL+X_AGE+SMOKE_EVER+alcohol+caffeine_daily+PAL_total+depression_ever,
+              family=quasipoisson,
+              subset=(ASP_EGG>0)
+            )
+)
+x <- data.frame(summary(pool(fit)))
+x

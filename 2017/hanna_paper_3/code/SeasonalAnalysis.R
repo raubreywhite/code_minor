@@ -1,6 +1,7 @@
 SeasonalAnalysis <- function(){
 
   dir.create(file.path(org::PROJ$SHARED_TODAY,"main_graphs"))
+  dir.create(file.path(org::PROJ$SHARED_TODAY,"thesis_graphs"))
   
   toPlotTotal <- vector("list",2)
   for(sens in c("main_analysis","sens_analysis","sub_analysis")){
@@ -34,15 +35,22 @@ SeasonalAnalysis <- function(){
         ssri <- pp_ssri
       }
       
+      labelStratificationByDepression <- "None"
       # stratify data after depression if desired
       if(depressed=="Depressed"){
         data <- data[get(dep)==1]
+        labelStratificationByDepression <- sprintf("%s==1",dep)
       } else if(depressed=="Not-depressed"){
         data <- data[get(dep)==0]
+        labelStratificationByDepression <- sprintf("%s==0",dep)
       }
       
       # exclude according to sensitivity if desired
-      if(sens=="sens_analysis") data <- data[get(sensitivity)!=1]
+      labelStratificationBySensitivity <- "None"
+      if(sens=="sens_analysis"){
+        data <- data[get(sensitivity)!=1]
+        labelStratificationBySensitivity <- sprintf("%s!=1",sensitivity)
+      }
       
       # include oversampling for main analysis
       if(sens %in% c("main_analysis","sens_analysis") & depressed=="All"){
@@ -53,8 +61,11 @@ SeasonalAnalysis <- function(){
                                sens,
                                sprintf("details_%s_%s.txt",pgorpp,depressed)))
       writeLines(c(
-        sprintf("\n\n**OUTCOMES (IFS)**\n%s",paste0(ims,collapse="\n")),
-        sprintf("\n\n**CONFOUNDERS**\n%s",paste0(confs,collapse="\n"))
+        sprintf("\n\n**NUMBER OF PEOPLE**\n%s",nrow(data)),
+        sprintf("\n\n**DATA SELECTION (1)**\n%s",labelStratificationByDepression),
+        sprintf("\n\n**DATA SELECTION (2)**\n%s",labelStratificationBySensitivity),
+        sprintf("\n\n**CONFOUNDERS**\n%s",paste0(confs,collapse="\n")),
+        sprintf("\n\n**OUTCOMES (IFS)**\n%s",paste0(ims,collapse="\n"))
       ), fileConn)
       close(fileConn)
       
@@ -144,7 +155,7 @@ SeasonalAnalysis <- function(){
       }
       
       tab <- x[,c("im","trough_to_peak_change","peak","trough","depressed","meanValueLog2","pseasonality"),with=F]
-      tab[,pbonf:=pseasonality*.N/3]
+      tab[,pbonf:=pseasonality*.N/length(unique(tab$depressed))]
       tab[pbonf>1,pbonf:=1]
       tab[,pbonf:=RAWmisc::Format(pbonf,digits=3)]
       tab[,pseasonality:=RAWmisc::Format(pseasonality,digits=3)]
@@ -384,4 +395,74 @@ SeasonalAnalysis <- function(){
                                          "scatter_plots",
                                          sprintf("%s_%s.png",dep,im)))
   }
+  
+  # 2019 hanna requests graphs for her thesis
+  
+  # VEGF-A, OPG, CSF-1, CDCP1, and TNFRSF9),
+  # the three markers with the largest expected relative 
+  # difference between trough and peak (SIRT2, AXIN1, and STAM-BP – all pregnancy),
+  # as well as the postpartum marker (MCP-4)
+  unique(data$IF)
+  stringr::str_subset(unique(data$IF),"VEGF")
+  stringr::str_subset(unique(data$IF),"OPG")
+  stringr::str_subset(unique(data$IF),"CSF")
+  stringr::str_subset(unique(data$IF),"CDCP")
+  stringr::str_subset(unique(data$IF),"TNFRS")
+  stringr::str_subset(unique(data$IF),"SIRT")
+  stringr::str_subset(unique(data$IF),"AXIN")
+  stringr::str_subset(unique(data$IF),"STAM")
+  stringr::str_subset(unique(data$IF),"MCP")
+  
+  pd <- data[IF %in% c(
+    "im_log2_102_VEGF_A_pg",
+    "im_log2_110_OPG_pg",
+    "im_log2_196_CSF_1_pg",
+    "im_log2_107_CDCP1_pg",
+    "im_log2_187_TNFRSF9_pg",
+    "im_log2_172_SIRT2_pg",
+    "im_log2_118_AXIN1_pg",
+    "im_log2_192_STAMPB_pg",
+    "im_log2_136_MCP_4_pp"
+  ) & 
+    Depressed=="All"] 
+  
+  pd[IF=="im_log2_102_VEGF_A_pg",labels:="VEGF-A (pg)"]
+  pd[IF=="im_log2_110_OPG_pg",labels:="OPG (pg)"]
+  pd[IF=="im_log2_196_CSF_1_pg",labels:="CSF-1 (pg)"]
+  pd[IF=="im_log2_107_CDCP1_pg",labels:="CDCP1 (pg)"]
+  pd[IF=="im_log2_187_TNFRSF9_pg",labels:="TNFRSF9 (pg)"]
+  pd[IF=="im_log2_172_SIRT2_pg",labels:="SIRT2 (pg)"]
+  pd[IF=="im_log2_118_AXIN1_pg",labels:="AXIN1 (pg)"]
+  pd[IF=="im_log2_192_STAMPB_pg",labels:="STAM-BP (pg)"]
+  pd[IF=="im_log2_136_MCP_4_pp",labels:="MCP-4 (pp)"]
+  pd[,str_pbonf:=formatC(pbonf,digits=3,format="f")]
+  pd[str_pbonf=="0.000",str_pbonf:="<0.001"]
+  pd[,labels:=glue::glue("{labels}; p={str_pbonf}",labels=labels,str_pbonf=str_pbonf)]
+  
+  q <- ggplot(pd, aes(x=date,y=y,group=labels,colour=labels))
+  q <- q + geom_line(lwd=2,colour="black")
+  q <- q + geom_line(lwd=1.5)
+  #q <- q + expand_limits(x=as.Date("2016-08-01"))
+  q <- q + scale_colour_brewer("",palette="Set1")
+  #q <- q + scale_colour_brewer("",palette="Set2")
+  q <- q + scale_x_date("Day/month", labels = scales::date_format("%d/%m"),
+                        breaks=as.Date(c("2017-01-01",
+                                         "2017-03-01",
+                                         "2017-05-01",
+                                         "2017-07-01",
+                                         "2017-09-01",
+                                         "2017-11-01",
+                                         "2018-01-01")),
+                        minor_breaks=as.Date(c("2017-02-01",
+                                               "2017-04-01",
+                                               "2017-06-01",
+                                               "2017-08-01",
+                                               "2017-10-01",
+                                               "2017-12-01",
+                                               "2018-01-01")))
+  q <- q + scale_y_continuous("Change in NPX [log2(concentration)]")
+  q <- q + theme_gray(base_size=16)
+  RAWmisc::saveA4(q,filename=file.path(org::PROJ$SHARED_TODAY,"thesis_graphs","figure.png"))
+  
+  
 }
