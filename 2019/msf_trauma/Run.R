@@ -2,7 +2,7 @@ org::AllowFileManipulationFromInitialiseProject()
 org::InitialiseProject(
   HOME = "/git/code_minor/2019/msf_trauma/",
   RAW = "/data/org/data_raw/code_minor/2019/msf_trauma/",
-  SHARED = "/box/Phase 2/results/"
+  SHARED = "/dropbox/analyses/results_shared/code_minor/2019/msf_trauma/"
 )
 
 library(data.table)
@@ -10,8 +10,8 @@ library(ggplot2)
 library(pbmcapply)
 
 stack <- expand.grid(
-  num_people=seq(200,800,100),
-  sim_id=1:1000
+  num_people=seq(100,600,50),
+  sim_id=1:2000
 )
 
 stack_list <- split(stack, seq(nrow(stack)))
@@ -26,14 +26,19 @@ setnames(res,c("sim","est","se","t","p","var","num_people"))
 
 res <- res[,.(
   est=round(mean(est),2),
-  power=mean(p<0.05)
+  power=RAWmisc::Format(mean(p<0.05))
 ),keyby=.(
   var,
   num_people
 )]
+res[,`N with 30% LTFU`:=round(num_people/0.7)]
 
 res
-#xlsx::write.xlsx2(res, fs::path(org::PROJ$SHARED_TODAY,"afghanistan.xlsx"))
+res <- dcast.data.table(res,num_people+`N with 30% LTFU`~var,value.var = "power")
+res[,`(Intercept)`:=NULL]
+res[,`outcome_baseline`:=NULL]
+setnames(res,"num_people","N with 0% LTFU")
+openxlsx::write.xlsx(res, fs::path(org::PROJ$SHARED_TODAY,"power_calc.xlsx"))
 
 
 x <- sim_data(100)
